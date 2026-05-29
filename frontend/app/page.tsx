@@ -783,11 +783,12 @@ export default function LandingPage() {
       <footer className="bg-[#ECECE7]/40 border-t border-accent-soft/40 py-12 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center gap-6 select-none">
         <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">&copy; 2026 REZIQ. Crafted for global engineering elites.</p>
         <div className="flex gap-8 text-[10px] font-bold text-text-muted uppercase tracking-wider">
-          <Link href="/dashboard/privacy" className="hover:text-text-primary transition-colors">Privacy</Link>
-          <Link href="/dashboard/help" className="hover:text-text-primary transition-colors">Support</Link>
+          <Link href="/privacy" className="hover:text-text-primary transition-colors">Privacy Policy</Link>
+          <Link href="/terms" className="hover:text-text-primary transition-colors">Terms of Service</Link>
           <Link href="/dashboard/feedback" className="hover:text-text-primary transition-colors">Feedback</Link>
         </div>
       </footer>
+
 
     </div>
   );
