@@ -19,3 +19,16 @@ export const env = {
   groqApiKey: process.env.GROQ_API_KEY || '',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://reziqai.vercel.app',
 };
+
+export const getApiUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    }
+    // relative redirect on Vercel
+    return process.env.NEXT_PUBLIC_API_URL || `${window.location.origin}/_/backend`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+};
+

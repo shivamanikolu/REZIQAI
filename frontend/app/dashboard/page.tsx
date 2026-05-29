@@ -28,6 +28,7 @@ import remarkGfm from 'remark-gfm';
 import { SKILL_GAP_MASTER_PROMPT } from '@/lib/prompts/skill-gap-master-prompt';
 import { extractTextFromFile } from '@/lib/extractor';
 import { processResumeIntelligence, ExtractedMetadata } from '@/lib/intelligence';
+import { getApiUrl } from '@/lib/env';
 
 // Custom style override for premium markdown presentation
 const markdownStyles = `
@@ -395,7 +396,7 @@ export default function SkillGapPage() {
         .replace("{resume_text}", optimizedResume)
         .replace("{candidate_name_if_available}", candidateName);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/skill-gap/analyze`, {
+      const response = await fetch(`${getApiUrl()}/api/skill-gap/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

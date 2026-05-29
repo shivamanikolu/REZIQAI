@@ -1,11 +1,15 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import skill_gap, admin, feedback
 
+root_path = "/_/backend" if os.environ.get("VERCEL") else ""
+
 app = FastAPI(
     title="REZIQ AI Career Intelligence API",
     description="Recruiter-grade Career Intelligence Operating System backend powering resume analysis, mock interviews, and system telemetry.",
-    version="1.0.0"
+    version="1.0.0",
+    root_path=root_path
 )
 
 # CORS Configuration

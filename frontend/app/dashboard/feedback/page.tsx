@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { getApiUrl } from '@/lib/env';
 import { MessageSquare, Star, Send, CheckCircle2, Loader2, ShieldAlert } from 'lucide-react';
 
 export default function FeedbackPage() {
@@ -46,8 +47,7 @@ export default function FeedbackPage() {
         }
       };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${apiUrl}/api/feedback/submit`, {
+      const res = await fetch(`${getApiUrl()}/api/feedback/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

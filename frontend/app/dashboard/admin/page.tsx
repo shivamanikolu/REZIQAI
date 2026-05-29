@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '@/lib/env';
 import { Cpu, ShieldCheck, Activity, Terminal, ShieldAlert, Heart, MessageSquare, Trash2, CheckSquare, Eye, Filter, ArrowUpDown } from 'lucide-react';
 
 interface FeedbackItem {
@@ -37,7 +38,7 @@ export default function AdminPage() {
 
   const fetchAdminData = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       
       // Fetch metrics
       const metRes = await fetch(`${apiUrl}/api/admin/telemetry`);
@@ -65,8 +66,7 @@ export default function AdminPage() {
     }
     setActionLoadingId(id);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${apiUrl}/api/admin/feedback/${id}`, {
+      const res = await fetch(`${getApiUrl()}/api/admin/feedback/${id}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Delete failed.');
@@ -82,8 +82,7 @@ export default function AdminPage() {
   const handleReviewFeedback = async (id: string) => {
     setActionLoadingId(id);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${apiUrl}/api/admin/feedback/${id}/review`, {
+      const res = await fetch(`${getApiUrl()}/api/admin/feedback/${id}/review`, {
         method: 'PUT',
       });
       if (!res.ok) throw new Error('Update failed.');
