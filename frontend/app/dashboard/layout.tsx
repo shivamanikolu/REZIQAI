@@ -114,7 +114,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!active) return;
       if (event === 'SIGNED_OUT') {
         setUser(null);
-        router.push('/login');
+        useAppStore.getState().setReports([]);
+        useAppStore.getState().setCareerGoals('');
+        router.replace('/');
       } else if (event === 'SIGNED_IN' && session?.user) {
         syncUser();
       }
@@ -134,9 +136,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (err) {
+      console.warn('Supabase signOut error:', err);
+    }
     setUser(null);
-    router.push('/login');
+    useAppStore.getState().setReports([]);
+    useAppStore.getState().setCareerGoals('');
+    router.replace('/');
   };
 
   return (

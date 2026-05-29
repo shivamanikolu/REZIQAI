@@ -18,12 +18,12 @@ function CallbackHandler() {
       } catch (err) {
         console.error('Error exchanging code for session:', err);
       } finally {
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       }
     };
 
     handleCallback();
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   return (
     <div className="flex flex-col items-center gap-4">

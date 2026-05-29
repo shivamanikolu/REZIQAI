@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 import { ArrowRight, Cpu, FileText, CheckCircle2, ShieldCheck, ChevronDown, Award, Sparkles, Target, Zap, Shield, Star, Lock } from 'lucide-react';
 
 const row1Tags = [
@@ -70,6 +72,19 @@ const faqs = [
 ];
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.replace('/dashboard');
+      }
+    };
+    checkSession();
+  }, [router]);
+
   // FAQ Expand state
   const [faqExpanded, setFaqExpanded] = useState<Record<number, boolean>>({});
 
