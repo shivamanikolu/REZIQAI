@@ -87,6 +87,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
       } catch (err) {
         console.error('Error syncing user profile:', err);
+        try {
+          const { data: { session: fallbackSession } } = await supabase.auth.getSession();
+          if (fallbackSession?.user) {
+            setUser({
+              id: fallbackSession.user.id,
+              email: fallbackSession.user.email || '',
+              full_name: fallbackSession.user.user_metadata?.full_name || fallbackSession.user.user_metadata?.name || 'Candidate',
+              avatar_url: fallbackSession.user.user_metadata?.avatar_url || '',
+              auth_provider: fallbackSession.user.app_metadata?.provider || 'email',
+            });
+            return;
+          }
+        } catch (fallbackErr) {
+          console.error('Failed to get fallback session:', fallbackErr);
+        }
         setUser(null);
         router.push('/login');
       }
