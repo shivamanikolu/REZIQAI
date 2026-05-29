@@ -112,8 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [setUser, router]);
 
   const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Optimize', path: '/dashboard/optimize', icon: LayoutDashboard },
+    { label: 'Optimize', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Reports', path: '/dashboard/reports', icon: FileText },
     { label: 'History', path: '/dashboard/history', icon: History },
     { label: 'Feedback', path: '/dashboard/feedback', icon: MessageSquare },
@@ -204,14 +203,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <div className="bg-[#ECECE7]/50 border border-[#DADAD4]/40 rounded-[20px] p-2 flex flex-col gap-1">
                     <Link
                       href="/dashboard"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-primary hover:bg-[#ECECE7] transition-all"
-                    >
-                      <LayoutDashboard className="w-3.5 h-3.5" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/dashboard/optimize"
                       onClick={() => setProfileMenuOpen(false)}
                       className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-primary hover:bg-[#ECECE7] transition-all"
                     >
@@ -321,6 +312,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Mobile Group 1 (Background Color: Suitable Light Grey) */}
             <div className="bg-[#ECECE7]/50 border border-[#DADAD4]/40 rounded-[20px] p-2.5 flex flex-col gap-1">
               {navItems.map((item) => {
+                const Icon = item.icon;
                 const active = pathname === item.path;
                 return (
                   <Link
@@ -331,7 +323,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       active ? 'bg-accent text-white shadow-premium' : 'text-text-primary hover:bg-[#ECECE7]/60'
                     }`}
                   >
-                    <LayoutDashboard className="w-4 h-4" />
+                    <Icon className="w-4 h-4" />
                     {item.label}
                   </Link>
                 );
