@@ -431,7 +431,6 @@ export default function SkillGapPage() {
           if (accumulatedText.includes('[RESET_STREAM_FOR_RETRY]')) {
             const parts = accumulatedText.split('[RESET_STREAM_FOR_RETRY]');
             accumulatedText = parts[parts.length - 1];
-            setMarkdownText(accumulatedText);
           } else {
             // Check for embedded streaming errors
             if (accumulatedText.includes('[ERROR:')) {
@@ -439,13 +438,12 @@ export default function SkillGapPage() {
               const errMsg = errorMatch ? errorMatch[1] : 'Error streaming response from model.';
               throw new Error(errMsg);
             }
-
-            setMarkdownText(accumulatedText);
           }
         }
       }
 
-      // Stream successfully completed! Let's persist state to store
+      // Stream successfully completed! Update the visible state and persist to store
+      setMarkdownText(accumulatedText);
       const parsedScores = parseScoresFromMarkdown(accumulatedText);
       const reportId = crypto.randomUUID();
 
@@ -617,7 +615,7 @@ export default function SkillGapPage() {
         } catch (pdfErr) {
           console.error('Failed to auto-save report/history PDF:', pdfErr);
         }
-      }, 800);
+      }, 1200);
 
     } catch (err: any) {
       setErrorMessage(err.message || 'Connection failed. Please ensure the backend server is running and keys are active.');
@@ -878,8 +876,17 @@ export default function SkillGapPage() {
       </div>
 
       {/* INPUT SYSTEM FORM */}
-      {!markdownText && !analyzing && (
-        <form onSubmit={handleAnalyze} className="w-full flex flex-col gap-8 print:hidden">
+      <AnimatePresence mode="wait">
+        {!markdownText && !analyzing && (
+          <motion.div
+            key="form"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full"
+          >
+            <form onSubmit={handleAnalyze} className="w-full flex flex-col gap-8 print:hidden">
           <div className="glass-panel rounded-[32px] p-8 md:p-10 border border-accent-soft/50 flex flex-col gap-8">
             <div className="flex items-center gap-2.5 border-b border-[#ECECE7]/85 pb-4">
               <Sparkles className="w-4 h-4 text-text-secondary" />
@@ -1344,11 +1351,20 @@ export default function SkillGapPage() {
             </button>
           </div>
         </form>
-      )}
+      </motion.div>
+    )}
 
       {/* CINEMATIC PREMIUM LOADING SCREEN */}
       {analyzing && (
-        <div className="glass-panel rounded-[32px] p-12 border border-accent-soft/60 text-center flex flex-col items-center justify-center min-h-[460px] w-full mx-auto print:hidden animate-scale-in relative overflow-hidden">
+        <motion.div
+          key="loading"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full"
+        >
+          <div className="glass-panel rounded-[32px] p-12 border border-accent-soft/60 text-center flex flex-col items-center justify-center min-h-[460px] w-full mx-auto print:hidden relative overflow-hidden">
           {/* Subtle Background Pulse */}
           <div className="absolute inset-0 bg-gradient-to-tr from-[#ECECE7]/10 via-transparent to-[#ECECE7]/25 animate-pulse pointer-events-none" />
           
@@ -1387,11 +1403,19 @@ export default function SkillGapPage() {
             <div className="h-10 bg-[#ECECE7] rounded-xl animate-pulse" style={{ animationDelay: '0.4s' }} />
           </div>
         </div>
-      )}
+      </motion.div>
+    )}
 
       {/* RESULT REPORT CONTAINER */}
-      {markdownText && (
-        <div className="flex flex-col gap-8 w-full mx-auto">
+      {markdownText && !analyzing && (
+        <motion.div
+          key="report"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full"
+        >
+          <div className="flex flex-col gap-8 w-full mx-auto">
           {/* Real-time Streaming Scoreboard */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4 print:grid-cols-3 print:gap-2">
             {[
@@ -1467,7 +1491,9 @@ export default function SkillGapPage() {
             </button>
           )}
         </div>
-      )}
-    </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</div>
   );
 }
