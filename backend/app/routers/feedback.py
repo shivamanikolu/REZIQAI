@@ -112,12 +112,9 @@ async def submit_feedback(req: FeedbackSubmitRequest):
         # Write to public.feedback
         res = db.table("feedback").insert(db_payload).execute()
         
-        # Trigger email delivery
-        await send_resend_email(req)
-        
         return {
             "status": "success",
-            "message": "Feedback persisted and email dispatched.",
+            "message": "Feedback persisted.",
             "data": res.data if res else []
         }
     except Exception as e:

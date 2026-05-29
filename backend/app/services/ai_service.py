@@ -55,9 +55,9 @@ async def generate_completion(
     # Check if this is the deepseek-r1-distill-llama-70b / skill-gap request
     if target_model == "deepseek-r1-distill-llama-70b" or endpoint == "/api/skill-gap/analyze":
         start_time = time.time()
-        # Estimate input tokens (1 token ~ 4 characters) to stay under Groq's 12,000 TPM limit
+        # Estimate input tokens (1 token ~ 4 characters) to stay under Groq's TPM rate limit safely
         estimated_input_tokens = (len(prompt) + len(system_instruction)) // 4
-        dynamic_max_tokens = max(1024, min(4096, 11800 - estimated_input_tokens))
+        dynamic_max_tokens = max(2048, min(8192, settings.GROQ_TPM_LIMIT - estimated_input_tokens))
         
         payload = {
             "model": "llama-3.3-70b-versatile",
@@ -321,9 +321,9 @@ async def generate_completion_stream(
     # Check if this is the deepseek-r1-distill-llama-70b / skill-gap request
     if target_model == "deepseek-r1-distill-llama-70b" or endpoint == "/api/skill-gap/analyze":
         start_time = time.time()
-        # Estimate input tokens (1 token ~ 4 characters) to stay under Groq's 12,000 TPM limit
+        # Estimate input tokens (1 token ~ 4 characters) to stay under Groq's TPM rate limit safely
         estimated_input_tokens = (len(prompt) + len(system_instruction)) // 4
-        dynamic_max_tokens = max(1024, min(4096, 11800 - estimated_input_tokens))
+        dynamic_max_tokens = max(2048, min(8192, settings.GROQ_TPM_LIMIT - estimated_input_tokens))
         
         payload = {
             "model": "llama-3.3-70b-versatile",

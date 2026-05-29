@@ -22,6 +22,7 @@ class Settings:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
     GROQ_MODEL: str = "deepseek-r1-distill-llama-70b"
+    GROQ_TPM_LIMIT: int = int(os.getenv("GROQ_TPM_LIMIT", "100000"))
 
     # Resend configuration
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")

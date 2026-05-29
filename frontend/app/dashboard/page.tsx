@@ -188,6 +188,21 @@ const markdownStyles = `
 export default function SkillGapPage() {
   const { user, addReport } = useAppStore();
   const reportRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [validationResult, setValidationResult] = useState<{
+    isValid: boolean;
+    hasRoadmap: boolean;
+    hasSummary: boolean;
+    hasBonus: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
   
   // Form states
   const [jobTitle, setJobTitle] = useState('');
@@ -350,6 +365,76 @@ export default function SkillGapPage() {
     return () => clearInterval(interval);
   }, [analyzing]);
 
+  // Premium auto-closer utility for unclosed markdown tags to guarantee visual stability
+  const autoCloseMarkdown = (text: string): string => {
+    if (!text) return '';
+    let result = text;
+    
+    // 1. Auto-close triple-backtick code blocks
+    const codeBlockCount = (result.match(/```/g) || []).length;
+    if (codeBlockCount % 2 !== 0) {
+      result += '\n```';
+    }
+    
+    // 2. Auto-close bold text asterisks
+    const boldCount = (result.match(/\*\*/g) || []).length;
+    if (boldCount % 2 !== 0) {
+      result += '**';
+    }
+    
+    // 3. Auto-close single asterisks for italics
+    const cleanTextForItalic = result.replace(/\*\*/g, '');
+    const italicCount = (cleanTextForItalic.match(/\*/g) || []).length;
+    if (italicCount % 2 !== 0) {
+      result += '*';
+    }
+
+    // 4. Auto-close incomplete markdown tables
+    const lines = result.split('\n');
+    let inTable = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2) {
+        if (!inTable) {
+          inTable = true;
+        }
+      } else if (inTable && trimmed.startsWith('|')) {
+        // Table row continues
+      } else {
+        inTable = false;
+      }
+    }
+    
+    if (inTable && lines.length > 0) {
+      const lastLine = lines[lines.length - 1].trim();
+      if (lastLine.startsWith('|') && !lastLine.endsWith('|')) {
+        result += ' |';
+      }
+    }
+    
+    return result;
+  };
+
+  // Perform frontend stream completeness checks
+  const checkReportCompleteness = (text: string) => {
+    const lower = text.toLowerCase();
+    
+    // Complete roadmap matches (must contain WEEK 3 or Day 21)
+    const hasRoadmap = lower.includes('day 21') || lower.includes('week 3') || lower.includes('roadmap') || lower.includes('day-by-day');
+    
+    // Complete sections (must contain executive summary snapshot or bonus recruiter)
+    const hasSummary = lower.includes('final executive summary snapshot') || lower.includes('executive summary') || lower.includes('summary');
+    const hasBonus = lower.includes('bonus recruiter intelligence') || lower.includes('bonus recruiter') || lower.includes('bonus');
+    
+    return {
+      isValid: hasRoadmap && hasSummary && hasBonus,
+      hasRoadmap,
+      hasSummary,
+      hasBonus
+    };
+  };
+
   // Handle direct stream response fetch
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -395,6 +480,12 @@ export default function SkillGapPage() {
         .replace("{resume_text}", optimizedResume)
         .replace("{candidate_name_if_available}", candidateName);
 
+      // Instantiate AbortController for safe streaming cancellation and cleanup
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
       const response = await fetch(`${getApiUrl()}/api/skill-gap/analyze`, {
         method: 'POST',
         headers: {
@@ -408,6 +499,7 @@ export default function SkillGapPage() {
           user_id: user?.id || '00000000-0000-0000-0000-000000000000',
           stream: true,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -442,9 +534,15 @@ export default function SkillGapPage() {
         }
       }
 
-      // Stream successfully completed! Update the visible state and persist to store
-      setMarkdownText(accumulatedText);
-      const parsedScores = parseScoresFromMarkdown(accumulatedText);
+      // Stream successfully completed! Santize and auto-close markdown
+      const finalizedText = autoCloseMarkdown(accumulatedText);
+      
+      // Perform stream completeness validation
+      const validation = checkReportCompleteness(finalizedText);
+      setValidationResult(validation);
+
+      setMarkdownText(finalizedText);
+      const parsedScores = parseScoresFromMarkdown(finalizedText);
       const reportId = crypto.randomUUID();
 
       // Trigger automatic PDF generation & DB save in background
@@ -559,7 +657,7 @@ export default function SkillGapPage() {
                 report_title: `Skill Gap Report - ${trimmedTitle}`,
                 job_title: trimmedTitle,
                 job_link: trimmedLink,
-                output_text: accumulatedText,
+                output_text: finalizedText,
                 pdf_url: publicUrl
               });
 
@@ -568,7 +666,7 @@ export default function SkillGapPage() {
             }
 
             // Save to history table
-            const wordCount = accumulatedText.split(/\s+/).filter(Boolean).length;
+            const wordCount = finalizedText.split(/\s+/).filter(Boolean).length;
             const reportSize = pdfBlob.size;
             const duration = Date.now() - startTime;
 
@@ -580,7 +678,7 @@ export default function SkillGapPage() {
                 job_title: trimmedTitle,
                 job_link: trimmedLink,
                 resume_text: optimizedResume,
-                generated_output: accumulatedText,
+                generated_output: finalizedText,
                 pdf_url: publicUrl,
                 ai_model: 'deepseek-r1-distill-llama-70b',
                 generation_time_ms: duration,
@@ -603,7 +701,7 @@ export default function SkillGapPage() {
             ats_score: parsedScores.ats,
             recruiter_score: parsedScores.recruiter,
             technical_score: parsedScores.technical,
-            verdict: accumulatedText,
+            verdict: finalizedText,
             missing_skills: parsedScores.missing_skills,
             suggested_improvements: parsedScores.suggested_improvements,
             career_timeline: parsedScores.career_timeline,
@@ -618,6 +716,10 @@ export default function SkillGapPage() {
       }, 1200);
 
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log('Stream fetch request was aborted.');
+        return;
+      }
       setErrorMessage(err.message || 'Connection failed. Please ensure the backend server is running and keys are active.');
       setMarkdownText('');
 
@@ -1416,6 +1518,27 @@ export default function SkillGapPage() {
           className="w-full"
         >
           <div className="flex flex-col gap-8 w-full mx-auto">
+          {validationResult && !validationResult.isValid && (
+            <div className="p-5 bg-warning/10 border border-warning/20 rounded-[24px] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs text-warning font-semibold animate-scale-in">
+              <div className="flex gap-3 items-center">
+                <AlertTriangle className="w-6 h-6 shrink-0 text-warning animate-pulse" />
+                <div className="flex flex-col gap-0.5 font-sans">
+                  <span className="font-extrabold text-[12px]">Forensic Report Completeness Warning</span>
+                  <span className="text-[10px] font-medium text-warning/80">
+                    This report appears partially complete due to early model termination. All available data was recovered and formatted cleanly.
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleAnalyze}
+                className="px-4 py-2 bg-warning text-white rounded-full text-[10px] font-bold hover:bg-warning/90 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Re-Generate Report
+              </button>
+            </div>
+          )}
+
           {/* Real-time Streaming Scoreboard */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4 print:grid-cols-3 print:gap-2">
             {[

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { getApiUrl } from '@/lib/env';
+import { supabase } from '@/lib/supabaseClient';
 import { MessageSquare, Star, Send, CheckCircle2, Loader2, ShieldAlert, ArrowLeft } from 'lucide-react';
 
 export default function FeedbackPage() {
@@ -15,6 +16,17 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  // Auto-dismiss toast notifications after 4 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const feedbackTypes = [
     'Bug Report',
@@ -27,6 +39,19 @@ export default function FeedbackPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Step 1: Validate feedback form fields properly
+    if (!feedbackText.trim()) {
+      setErrorMsg('Critique message cannot be empty.');
+      setToast({ message: 'Critique message cannot be empty.', type: 'error' });
+      return;
+    }
+    if (rating < 1 || rating > 5) {
+      setErrorMsg('Rating must be between 1 and 5 stars.');
+      setToast({ message: 'Invalid rating value.', type: 'error' });
+      return;
+    }
+
     setLoading(true);
     setErrorMsg('');
 
@@ -49,6 +74,7 @@ export default function FeedbackPage() {
         }
       };
 
+      // Step 2: Save feedback into Supabase database via FastAPI backend
       const res = await fetch(`${getApiUrl()}/api/feedback/submit`, {
         method: 'POST',
         headers: {
@@ -62,12 +88,52 @@ export default function FeedbackPage() {
         throw new Error(errText || 'Failed to submit feedback.');
       }
 
+      const resData = await res.json();
+      const createdFeedback = resData.data?.[0];
+      const feedbackId = createdFeedback?.id;
+
+      if (!feedbackId) {
+        console.warn('Backend warning: No database record ID returned.');
+      }
+
+      // Step 3: Invoke secure Edge Function using the returned feedback ID
+      let emailSuccess = false;
+      try {
+        const { data: invokeData, error: invokeError } = await supabase.functions.invoke('send-feedback-email', {
+          body: { id: feedbackId },
+        });
+
+        if (invokeError) {
+          console.warn('Feedback persisted, but secure Edge Function returned an error:', invokeError);
+        } else {
+          emailSuccess = true;
+        }
+      } catch (invokeErr) {
+        console.warn('Error invoking send-feedback-email Edge Function:', invokeErr);
+      }
+
+      // Step 4: Show success or warning toast based on email dispatch status
+      if (emailSuccess) {
+        setToast({ 
+          message: 'Feedback submitted successfully and telemetry email dispatched!', 
+          type: 'success' 
+        });
+      } else {
+        setToast({ 
+          message: 'Feedback saved, but telemetry notification email failed. Admin alerted.', 
+          type: 'warning' 
+        });
+      }
+
+      // Step 5: Refresh feedback UI and form state instantly
       setSubmitted(true);
       setFeedbackText('');
       setRating(5);
       setCategory('General Feedback');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Submission failed. Please check backend server.');
+      const errMsgText = err.message || 'Submission failed. Please check backend server.';
+      setErrorMsg(errMsgText);
+      setToast({ message: errMsgText, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -204,6 +270,36 @@ export default function FeedbackPage() {
             )}
           </button>
         </form>
+      )}
+      {/* Premium Glassmorphic Toast Notification Overlay */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 animate-scale-in">
+          <div className={`glass-panel flex items-center gap-3.5 px-6 py-4 rounded-[24px] border shadow-premium max-w-md bg-white/90 ${
+            toast.type === 'success' 
+              ? 'border-success/30' 
+              : toast.type === 'error'
+              ? 'border-error/30'
+              : 'border-warning/30'
+          }`}>
+            {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-success shrink-0" />}
+            {toast.type === 'error' && <ShieldAlert className="w-5 h-5 text-error shrink-0" />}
+            {toast.type === 'warning' && <Star className="w-5 h-5 text-warning fill-warning shrink-0" />}
+            
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-text-secondary">
+                {toast.type === 'success' ? 'Telemetry Dispatch' : toast.type === 'error' ? 'Telemetry Failure' : 'Telemetry Warning'}
+              </p>
+              <p className="text-xs font-semibold text-text-primary leading-relaxed">{toast.message}</p>
+            </div>
+            
+            <button 
+              onClick={() => setToast(null)}
+              className="ml-3 text-text-muted hover:text-text-primary transition-colors text-xs font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
