@@ -26,8 +26,12 @@ export const getApiUrl = (): string => {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     }
-    // relative redirect on Vercel
-    return process.env.NEXT_PUBLIC_API_URL || `${window.location.origin}/_/backend`;
+    // In production, ignore env variables pointing to localhost to prevent local configs from breaking live site
+    const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envApiUrl && !envApiUrl.includes('localhost') && !envApiUrl.includes('127.0.0.1')) {
+      return envApiUrl;
+    }
+    return `${window.location.origin}/_/backend`;
   }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 };
