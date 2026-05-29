@@ -32,54 +32,66 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Rebuilt Auth Guard & Profile Sync (Do not touch existing logic)
   useEffect(() => {
+    let active = true;
+
     const syncUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Retrieve profile from Database
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!active) return;
 
-        const currentMeta = {
-          id: session.user.id,
-          email: session.user.email || '',
-          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Candidate',
-          avatar_url: session.user.user_metadata?.avatar_url || '',
-          auth_provider: session.user.app_metadata?.provider || 'email',
-        };
+        if (session?.user) {
+          // Retrieve profile from Database
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
 
-        if (profile) {
-          if (
-            profile.full_name !== currentMeta.full_name ||
-            profile.avatar_url !== currentMeta.avatar_url ||
-            profile.auth_provider !== currentMeta.auth_provider
-          ) {
-            await supabase
-              .from('profiles')
-              .update({
-                full_name: currentMeta.full_name,
-                avatar_url: currentMeta.avatar_url,
-                auth_provider: currentMeta.auth_provider,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', session.user.id);
+          if (!active) return;
+
+          const currentMeta = {
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Candidate',
+            avatar_url: session.user.user_metadata?.avatar_url || '',
+            auth_provider: session.user.app_metadata?.provider || 'email',
+          };
+
+          if (profile) {
+            if (
+              profile.full_name !== currentMeta.full_name ||
+              profile.avatar_url !== currentMeta.avatar_url ||
+              profile.auth_provider !== currentMeta.auth_provider
+            ) {
+              await supabase
+                .from('profiles')
+                .update({
+                  full_name: currentMeta.full_name,
+                  avatar_url: currentMeta.avatar_url,
+                  auth_provider: currentMeta.auth_provider,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', session.user.id);
+            }
+            setUser({
+              id: profile.id,
+              email: profile.email,
+              full_name: currentMeta.full_name,
+              avatar_url: currentMeta.avatar_url,
+              auth_provider: currentMeta.auth_provider,
+            });
+          } else {
+            // Create profile if missing
+            await supabase.from('profiles').upsert(currentMeta);
+            setUser(currentMeta);
           }
-          setUser({
-            id: profile.id,
-            email: profile.email,
-            full_name: currentMeta.full_name,
-            avatar_url: currentMeta.avatar_url,
-            auth_provider: currentMeta.auth_provider,
-          });
         } else {
-          // Create profile if missing
-          await supabase.from('profiles').upsert(currentMeta);
-          setUser(currentMeta);
+          // No session, force login page
+          setUser(null);
+          router.push('/login');
         }
-      } else {
-        // No session, force login page
+      } catch (err) {
+        console.error('Error syncing user profile:', err);
         setUser(null);
         router.push('/login');
       }
@@ -89,18 +101,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Listen for auth state alterations
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        syncUser();
-      } else {
+      if (!active) return;
+      if (event === 'SIGNED_OUT') {
         setUser(null);
         router.push('/login');
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        syncUser();
       }
     });
 
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
   }, [setUser, router]);
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
