@@ -1,18 +1,19 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const code = requestUrl.searchParams.get('code');
+
+  const code = requestUrl.searchParams.get("code");
 
   if (code) {
-    try {
-      await supabase.auth.exchangeCodeForSession(code);
-    } catch (err) {
-      console.error('Failed to exchange OAuth code for session:', err);
-    }
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    await supabase.auth.exchangeCodeForSession(code);
   }
 
-  // Redirect to dashboard page
-  return NextResponse.redirect(`${requestUrl.origin}/dashboard`);
+  return NextResponse.redirect(new URL("/", request.url));
 }
