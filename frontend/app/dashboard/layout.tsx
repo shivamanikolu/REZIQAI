@@ -24,101 +24,90 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, setUser } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Rebuilt Auth Guard & Profile Sync (Robust implementation to prevent race conditions)
   useEffect(() => {
     let active = true;
 
-    const syncUser = async () => {
+    const syncUser = async (session: any) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
         if (!active) return;
 
-        if (session?.user) {
-          // Retrieve profile from Database
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
+        const currentMeta = {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Candidate',
+          avatar_url: session.user.user_metadata?.avatar_url || '',
+          auth_provider: session.user.app_metadata?.provider || 'email',
+        };
 
-          if (!active) return;
-
-          const currentMeta = {
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Candidate',
-            avatar_url: session.user.user_metadata?.avatar_url || '',
-            auth_provider: session.user.app_metadata?.provider || 'email',
-          };
-
-          if (profile) {
-            if (
-              profile.full_name !== currentMeta.full_name ||
-              profile.avatar_url !== currentMeta.avatar_url ||
-              profile.auth_provider !== currentMeta.auth_provider
-            ) {
-              await supabase
-                .from('profiles')
-                .update({
-                  full_name: currentMeta.full_name,
-                  avatar_url: currentMeta.avatar_url,
-                  auth_provider: currentMeta.auth_provider,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', session.user.id);
-            }
-            setUser({
-              id: profile.id,
-              email: profile.email,
-              full_name: currentMeta.full_name,
-              avatar_url: currentMeta.avatar_url,
-              auth_provider: currentMeta.auth_provider,
-            });
-          } else {
-            // Create profile if missing
-            await supabase.from('profiles').upsert(currentMeta);
-            setUser(currentMeta);
+        if (profile) {
+          if (
+            profile.full_name !== currentMeta.full_name ||
+            profile.avatar_url !== currentMeta.avatar_url ||
+            profile.auth_provider !== currentMeta.auth_provider
+          ) {
+            await supabase
+              .from('profiles')
+              .update({
+                full_name: currentMeta.full_name,
+                avatar_url: currentMeta.avatar_url,
+                auth_provider: currentMeta.auth_provider,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', session.user.id);
           }
+          setUser({
+            id: profile.id,
+            email: profile.email,
+            full_name: currentMeta.full_name,
+            avatar_url: currentMeta.avatar_url,
+            auth_provider: currentMeta.auth_provider,
+          });
         } else {
-          // No session, force login page
-          setUser(null);
-          router.push('/login');
+          // Create profile if missing
+          await supabase.from('profiles').upsert(currentMeta);
+          setUser(currentMeta);
         }
       } catch (err) {
         console.error('Error syncing user profile:', err);
-        try {
-          const { data: { session: fallbackSession } } = await supabase.auth.getSession();
-          if (fallbackSession?.user) {
-            setUser({
-              id: fallbackSession.user.id,
-              email: fallbackSession.user.email || '',
-              full_name: fallbackSession.user.user_metadata?.full_name || fallbackSession.user.user_metadata?.name || 'Candidate',
-              avatar_url: fallbackSession.user.user_metadata?.avatar_url || '',
-              auth_provider: fallbackSession.user.app_metadata?.provider || 'email',
-            });
-            return;
-          }
-        } catch (fallbackErr) {
-          console.error('Failed to get fallback session:', fallbackErr);
-        }
-        setUser(null);
-        router.push('/login');
+        // Fallback user state
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Candidate',
+          avatar_url: session.user.user_metadata?.avatar_url || '',
+          auth_provider: session.user.app_metadata?.provider || 'email',
+        });
       }
     };
-    
-    syncUser();
 
     // Listen for auth state alterations
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!active) return;
+
       if (event === 'SIGNED_OUT') {
         setUser(null);
         useAppStore.getState().setReports([]);
         useAppStore.getState().setCareerGoals('');
+        setIsInitializing(false);
         router.replace('/');
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        syncUser();
+      } else if (session?.user) {
+        await syncUser(session);
+        if (active) {
+          setIsInitializing(false);
+        }
+      } else {
+        setUser(null);
+        setIsInitializing(false);
+        router.push('/login');
       }
     });
 
@@ -146,6 +135,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     useAppStore.getState().setCareerGoals('');
     router.replace('/');
   };
+
+  if (isInitializing) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-primary text-text-primary">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 border-accent-soft border-t-accent animate-spin" />
+          <p className="text-xs font-bold uppercase tracking-wider text-text-secondary animate-pulse">
+            Loading your dashboard...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-bg-primary relative">

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Lora:wght@400..700&display=swap');
 @import "tailwindcss";
 
 @layer base {
@@ -16,6 +17,8 @@
     --success: #1F7A45;
     --warning: #B7791F;
     --error: #B42318;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-serif: 'Lora', Georgia, serif;
   }
 
   body {

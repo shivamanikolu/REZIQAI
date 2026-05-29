@@ -10,16 +10,25 @@ export default function LoginPage() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Auto-redirect if already logged in
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    let active = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+
       if (session) {
-        router.push('/dashboard');
+        router.replace('/dashboard');
+      } else {
+        setIsInitializing(false);
       }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
     };
-    checkSession();
   }, [router]);
 
   const handleGoogleLogin = async () => {
@@ -41,6 +50,19 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (isInitializing) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-primary text-text-primary">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 border-accent-soft border-t-accent animate-spin" />
+          <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+            Checking session...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col justify-center items-center px-6 min-h-screen bg-bg-primary relative overflow-hidden">

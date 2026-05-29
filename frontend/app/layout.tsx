@@ -1,18 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Lora } from 'next/font/google';
 import './globals.css';
-
-const inter = Inter({
-  variable: '--font-sans',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-const lora = Lora({
-  variable: '--font-serif',
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://reziqai.vercel.app'),
@@ -105,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${lora.variable} h-full antialiased`}>
+    <html lang="en" className="h-full antialiased">
       <head>
         <script
           type="application/ld+json"
