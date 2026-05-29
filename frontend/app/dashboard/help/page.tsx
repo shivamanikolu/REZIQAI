@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { HelpCircle, Mail, Send, CheckCircle2, ChevronRight, BookOpen, ShieldAlert, Sliders } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { HelpCircle, Mail, Send, CheckCircle2, ChevronRight, BookOpen, ShieldAlert, Sliders, ArrowLeft } from 'lucide-react';
 
 export default function HelpSupportPage() {
+  const router = useRouter();
   const [supportMessage, setSupportMessage] = useState('');
   const [ticketPriority, setTicketPriority] = useState('medium');
   const [submitted, setSubmitted] = useState(false);
@@ -17,15 +19,27 @@ export default function HelpSupportPage() {
 
   return (
     <div className="flex flex-col gap-10 animate-fade-in-up w-full max-w-[1000px] mx-auto pb-10">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-2 flex items-center gap-3">
-          <HelpCircle className="w-8 h-8 md:w-12 md:h-12 text-accent" />
-          Help & Support Hub
-        </h1>
-        <p className="text-sm text-text-secondary">
-          Deep system documentation, operational manuals, and direct support lines for the REZIQ Career Intelligence Engine.
-        </p>
+      {/* Header & Back Button */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div>
+          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-2 flex items-center gap-3">
+            <HelpCircle className="w-8 h-8 md:w-12 md:h-12 text-accent" />
+            Help & Support Hub
+          </h1>
+          <p className="text-sm text-text-secondary">
+            Deep system documentation, operational manuals, and direct support lines for the REZIQ Career Intelligence Engine.
+          </p>
+        </div>
+        <div className="shrink-0 self-start sm:self-auto">
+          <button
+            onClick={() => router.push('/dashboard')}
+            type="button"
+            className="inline-flex items-center gap-2 px-5 py-2.5 border border-accent-soft bg-white/80 hover:bg-[#ECECE7]/60 text-text-primary rounded-full text-xs font-bold transition-all shadow-premium cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Optimize
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
