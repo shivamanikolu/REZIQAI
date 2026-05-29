@@ -15,12 +15,7 @@ import {
   HelpCircle, 
   MessageSquare, 
   Sliders, 
-  ShieldAlert,
-  Sparkles,
-  Lock,
-  Compass,
-  Settings,
-  User
+  ShieldAlert
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  // Rebuilt Auth Guard & Profile Sync (Do not touch existing logic)
+  // Rebuilt Auth Guard & Profile Sync (Robust implementation to prevent race conditions)
   useEffect(() => {
     let active = true;
 
@@ -116,6 +111,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
   }, [setUser, router]);
 
+  const navItems = [
+    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Optimize', path: '/dashboard/optimize', icon: LayoutDashboard },
+    { label: 'Reports', path: '/dashboard/reports', icon: FileText },
+    { label: 'History', path: '/dashboard/history', icon: History },
+    { label: 'Feedback', path: '/dashboard/feedback', icon: MessageSquare },
+  ];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -123,207 +125,271 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   };
 
-  // Sidebar Core Items
-  const coreItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, disabled: false },
-    { label: 'Skill Gap', path: '#', icon: Sparkles, disabled: true },
-    { label: 'Roadmap', path: '#', icon: Compass, disabled: true },
-    { label: 'Settings', path: '/dashboard/settings', icon: Settings, disabled: false },
-  ];
-
-  // Sidebar Assessment Tool Items (preserving existing pages)
-  const assessmentItems = [
-    { label: 'AI Optimizer', path: '/dashboard/optimize', icon: LayoutDashboard },
-    { label: 'Reports', path: '/dashboard/reports', icon: FileText },
-    { label: 'History', path: '/dashboard/history', icon: History },
-    { label: 'Feedback', path: '/dashboard/feedback', icon: MessageSquare },
-  ];
-
-  const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#F5F5F2] border-r border-[#ECECE7]/70 px-4 py-6 justify-between select-none">
-      {/* Brand & Menu */}
-      <div className="flex flex-col gap-8">
-        {/* Brand Logo */}
-        <div className="px-3 flex items-center justify-between">
-          <Link href="/dashboard" className="font-extrabold text-2xl tracking-tight text-text-primary">
+  return (
+    <div className="flex-1 flex flex-col min-h-screen bg-bg-primary relative">
+      {/* TOP NAVIGATION BAR */}
+      <header className="w-full h-20 px-6 md:px-8 glass-panel border-b border-[#ECECE7]/60 flex justify-between items-center z-40 sticky top-0 bg-white/70">
+        {/* Left Side: Logo (Desktop & Mobile) */}
+        <div className="flex items-center">
+          <Link href="/dashboard" className="font-extrabold text-xl tracking-tight text-text-primary">
             REZIQ
           </Link>
-          <span className="text-[9px] bg-accent/5 text-text-secondary px-2.5 py-0.5 rounded-full border border-accent-soft font-bold uppercase tracking-wider">
-            SaaS
-          </span>
         </div>
 
-        {/* Section: Core Menu */}
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest px-3 mb-1">
-            Core Menu
-          </p>
-          {coreItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.path;
-            
-            if (item.disabled) {
+        {/* Right Side */}
+        <div className="flex items-center gap-6">
+          {/* Desktop Navigation Items */}
+          <nav className="hidden md:flex items-center gap-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = pathname === item.path;
               return (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between h-10 px-3 rounded-xl text-text-muted cursor-not-allowed border border-transparent font-bold text-xs transition-all opacity-60"
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`flex items-center gap-2 h-10 px-4 rounded-[20px] text-xs font-bold tracking-wide uppercase transition-all ${
+                    active
+                      ? 'bg-accent text-white shadow-premium'
+                      : 'hover:bg-[#ECECE7]/60 text-text-secondary hover:text-text-primary'
+                  }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{item.label}</span>
-                  </div>
-                  <div className="flex items-center gap-1 bg-[#ECECE7] px-2 py-0.5 rounded text-[8px] font-extrabold tracking-wider">
-                    <Lock className="w-2.5 h-2.5" />
-                    SOON
-                  </div>
-                </div>
+                  <Icon className="w-3.5 h-3.5" />
+                  {item.label}
+                </Link>
               );
-            }
+            })}
+          </nav>
 
-            return (
-              <Link
-                key={item.label}
-                href={item.path}
-                className={`flex items-center gap-2.5 h-10 px-3 rounded-xl text-xs font-bold transition-all ${
-                  active
-                    ? 'bg-accent text-white shadow-premium'
-                    : 'hover:bg-[#ECECE7]/60 text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
+          {/* Desktop Profile Pill */}
+          <div className="relative hidden md:block">
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="flex items-center gap-3 bg-[#ECECE7]/40 border border-[#DADAD4]/50 rounded-[20px] py-1.5 pl-3 pr-2 hover:bg-[#ECECE7]/60 active:scale-98 transition-all cursor-pointer"
+            >
+              <div className="overflow-hidden max-w-[150px]">
+                <p className="text-xs font-bold text-text-primary truncate">{user?.full_name}</p>
+              </div>
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt={user.full_name} className="w-6 h-6 rounded-full object-cover shadow-sm" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
+                  {user?.full_name ? user.full_name.charAt(0) : 'P'}
+                </div>
+              )}
+            </button>
 
-        {/* Section: Assessment Tools */}
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest px-3 mb-1">
-            Assessment Tools
-          </p>
-          {assessmentItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.path;
-            return (
-              <Link
-                key={item.label}
-                href={item.path}
-                className={`flex items-center gap-2.5 h-10 px-3 rounded-xl text-xs font-bold transition-all ${
-                  active
-                    ? 'bg-accent text-white shadow-premium'
-                    : 'hover:bg-[#ECECE7]/60 text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+            {/* Desktop Profile Dropdown Popover */}
+            {profileMenuOpen && (
+              <>
+                {/* Backdrop overlay */}
+                <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setProfileMenuOpen(false)} />
+                
+                <div className="absolute right-0 top-12 w-80 glass-panel border border-[#DADAD4] rounded-[28px] p-5 flex flex-col gap-4 shadow-premium z-50 animate-scale-in">
+                  {/* Dropdown User Info */}
+                  <div className="px-1 pb-3 border-b border-[#ECECE7]/60 flex items-center gap-3">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt={user.full_name} className="w-8 h-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-[11px] font-bold shadow-sm">
+                        {user?.full_name ? user.full_name.charAt(0) : 'P'}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-extrabold text-text-primary">{user?.full_name}</p>
+                      <p className="text-[10px] text-text-muted">{user?.email}</p>
+                    </div>
+                  </div>
 
-      {/* Footer / Profile */}
-      <div className="flex flex-col gap-4 border-t border-[#ECECE7] pt-6">
-        <div className="flex items-center gap-3 px-2">
-          {user?.avatar_url ? (
-            <img src={user.avatar_url} alt={user.full_name} className="w-8 h-8 rounded-full object-cover shadow-sm border border-[#DADAD4]" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                  {/* Group 1: Navigation Actions (Background Color: Suitable Light Grey) */}
+                  <div className="bg-[#ECECE7]/50 border border-[#DADAD4]/40 rounded-[20px] p-2 flex flex-col gap-1">
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-primary hover:bg-[#ECECE7] transition-all"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                      Dashboard
+                    </Link>
+                    <Link
+                      href="/dashboard/optimize"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-primary hover:bg-[#ECECE7] transition-all"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                      Optimize
+                    </Link>
+                    <Link
+                      href="/dashboard/reports"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-primary hover:bg-[#ECECE7] transition-all"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      My Reports
+                    </Link>
+                    <Link
+                      href="/dashboard/history"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-primary hover:bg-[#ECECE7] transition-all"
+                    >
+                      <History className="w-3.5 h-3.5" />
+                      History
+                    </Link>
+                  </div>
+
+                  {/* Group 2: Privacy Policy, Feedback, Help & Support, Data Preferences (Background Color: Clean Soft White) */}
+                  <div className="bg-white/80 border border-accent-soft/30 rounded-[20px] p-2 flex flex-col gap-1">
+                    <Link
+                      href="/privacy"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-9 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5 text-text-muted" />
+                      Privacy Policy
+                    </Link>
+                    <Link
+                      href="/dashboard/feedback"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-9 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-text-muted" />
+                      Feedback
+                    </Link>
+                    <Link
+                      href="/dashboard/help"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-9 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 text-text-muted" />
+                      Help & Support
+                    </Link>
+                    <Link
+                      href="/dashboard/preferences"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 h-9 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-text-muted" />
+                      Data Preferences
+                    </Link>
+                  </div>
+
+                  {/* Sign Out Button (Red Theme) */}
+                  <button
+                    onClick={() => { setProfileMenuOpen(false); handleLogout(); }}
+                    className="w-full h-11 rounded-[16px] flex items-center justify-center gap-2 bg-error/10 hover:bg-error text-error hover:text-white font-bold text-xs transition-all border border-error/20 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Mobile Profile Toggle Button (Top Right, triggers Drawer Modal) */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden flex items-center gap-2 bg-[#ECECE7]/40 border border-[#DADAD4]/50 rounded-[20px] py-1.5 px-3 active:bg-[#ECECE7]/60 transition-colors"
+          >
+            <span className="text-xs font-bold text-text-primary">
+              {user?.full_name ? user.full_name.split(' ')[0] : 'Profile'}
+            </span>
+            <div className="w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center text-[10px] font-bold">
               {user?.full_name ? user.full_name.charAt(0) : 'P'}
             </div>
-          )}
-          <div className="overflow-hidden">
-            <p className="text-xs font-bold text-text-primary truncate">{user?.full_name}</p>
-            <p className="text-[10px] text-text-muted truncate">{user?.email}</p>
-          </div>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          className="w-full h-10 rounded-[12px] flex items-center justify-center gap-2 bg-error/10 hover:bg-error text-error hover:text-white font-bold text-xs transition-all border border-error/20 cursor-pointer"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="flex-1 flex min-h-screen bg-bg-primary relative">
-      
-      {/* DESKTOP SIDEBAR */}
-      <aside className="hidden md:block w-64 h-screen fixed left-0 top-0 z-40">
-        {sidebarContent}
-      </aside>
-
-      {/* MOBILE HEADER */}
-      <div className="flex-1 flex flex-col md:pl-64">
-        <header className="md:hidden w-full h-16 px-4 glass-panel border-b border-[#ECECE7]/60 flex justify-between items-center z-40 sticky top-0 bg-white/70">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-1.5 rounded-lg bg-[#ECECE7]/55 text-text-primary"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <span className="font-extrabold text-lg tracking-tight text-text-primary">REZIQ</span>
-          </div>
-          
-          <button
-            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold"
-          >
-            {user?.full_name ? user.full_name.charAt(0) : 'P'}
           </button>
-        </header>
+        </div>
+      </header>
 
-        {/* MOBILE SLIDING DRAWER MENU */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 bg-[#0A0A0A]/20 backdrop-blur-sm z-50 transition-opacity" onClick={() => setMobileMenuOpen(false)}>
-            <div 
-              className="absolute top-0 left-0 bottom-0 w-72 max-w-[85vw] shadow-premium animate-scale-in"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="relative h-full">
-                <button 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full bg-[#ECECE7]/85 flex items-center justify-center text-text-secondary"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                {sidebarContent}
+      {/* MOBILE NAVIGATION DRAWER */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 bg-[#0A0A0A]/20 backdrop-blur-md z-30 transition-opacity" onClick={() => setMobileMenuOpen(false)}>
+          <div
+            className="absolute top-20 left-0 right-0 glass-panel border-b border-[#DADAD4] p-6 flex flex-col gap-4 animate-scale-in max-h-[85vh] overflow-y-auto scrollbar-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Area */}
+            <div className="pb-3 border-b border-[#ECECE7]/60 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-extrabold text-text-primary">{user?.full_name}</p>
+                <p className="text-[10px] text-text-muted">{user?.email}</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* MOBILE QUICK PROFILE SUMMARY DROPDOWN */}
-        {profileMenuOpen && (
-          <>
-            <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setProfileMenuOpen(false)} />
-            <div className="absolute right-4 top-14 w-64 glass-panel border border-[#DADAD4] rounded-[24px] p-4 flex flex-col gap-3 shadow-premium z-50 animate-scale-in">
-              <div className="pb-2 border-b border-[#ECECE7]/60">
-                <p className="text-xs font-extrabold text-text-primary">{user?.full_name}</p>
-                <p className="text-[9px] text-text-muted">{user?.email}</p>
-              </div>
-              <button
-                onClick={() => { setProfileMenuOpen(false); handleLogout(); }}
-                className="w-full h-9 rounded-lg flex items-center justify-center gap-1.5 bg-error/10 hover:bg-error text-error hover:text-white font-bold text-xs transition-all border border-error/20"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Sign Out
+              <button onClick={() => setMobileMenuOpen(false)} className="w-8 h-8 rounded-full bg-[#ECECE7]/55 flex items-center justify-center text-text-secondary">
+                <X className="w-4 h-4" />
               </button>
             </div>
-          </>
-        )}
 
-        {/* MAIN PANELS AND CONTENT WORKSPACE */}
-        <main className="flex-1 flex flex-col p-6 md:p-8 overflow-y-auto w-full">
-          {children}
-        </main>
-      </div>
+            {/* Mobile Group 1 (Background Color: Suitable Light Grey) */}
+            <div className="bg-[#ECECE7]/50 border border-[#DADAD4]/40 rounded-[20px] p-2.5 flex flex-col gap-1">
+              {navItems.map((item) => {
+                const active = pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 h-11 px-3 rounded-xl text-xs font-bold transition-all ${
+                      active ? 'bg-accent text-white shadow-premium' : 'text-text-primary hover:bg-[#ECECE7]/60'
+                    }`}
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Mobile Group 2 (Background Color: Clean Soft White) */}
+            <div className="bg-white/80 border border-accent-soft/30 rounded-[20px] p-2.5 flex flex-col gap-1">
+              <Link
+                href="/privacy"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+              >
+                <ShieldAlert className="w-4 h-4 text-text-muted" />
+                Privacy Policy
+              </Link>
+              <Link
+                href="/dashboard/feedback"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+              >
+                <MessageSquare className="w-4 h-4 text-text-muted" />
+                Feedback
+              </Link>
+              <Link
+                href="/dashboard/help"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+              >
+                <HelpCircle className="w-4 h-4 text-text-muted" />
+                Help & Support
+              </Link>
+              <Link
+                href="/dashboard/preferences"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 h-10 px-3 rounded-xl text-xs font-bold text-text-secondary hover:bg-[#ECECE7]/40 text-left transition-all"
+              >
+                <Sliders className="w-4 h-4 text-text-muted" />
+                Data Preferences
+              </Link>
+            </div>
+
+            {/* Mobile Sign Out (Red Theme) */}
+            <button
+              onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+              className="w-full h-12 rounded-[16px] flex items-center justify-center gap-2 bg-error/10 hover:bg-error text-error hover:text-white font-bold text-xs transition-all border border-error/20"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MAIN WORKSPACE */}
+      <main className="flex-1 flex flex-col p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+        {children}
+      </main>
     </div>
   );
 }
