@@ -33,6 +33,16 @@ export const getApiUrl = (): string => {
     }
     return `${window.location.origin}/_/backend`;
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+  // Server-side (SSR) execution
+  const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envApiUrl && !envApiUrl.includes('localhost') && !envApiUrl.includes('127.0.0.1')) {
+    return envApiUrl;
+  }
+  // If running on Vercel server, VERCEL_URL is set automatically to the domain
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/_/backend`;
+  }
+  return 'http://localhost:8000';
 };
 

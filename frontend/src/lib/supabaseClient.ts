@@ -8,38 +8,36 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 const createMockSupabaseClient = () => {
-  const queryProxy: any = new Proxy({}, {
+  const mockFn = () => {};
+  const proxy: any = new Proxy(mockFn, {
     get(target, prop) {
       if (prop === 'then') {
-        return (resolve: any) => resolve({ data: null, error: null });
+        return (resolve: any) => resolve({
+          data: {
+            session: null,
+            user: null,
+            publicUrl: '',
+            subscription: { unsubscribe: () => {} }
+          },
+          error: null
+        });
+      }
+      if (prop === 'onAuthStateChange') {
+        return () => ({ data: { subscription: { unsubscribe: () => {} } } });
+      }
+      if (prop === 'data') {
+        return { publicUrl: '' };
       }
       if (typeof prop === 'symbol') {
         return undefined;
       }
-      return () => queryProxy;
+      return proxy;
+    },
+    apply(target, thisArg, argumentsList) {
+      return proxy;
     }
   });
-
-  const authMock = {
-    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    signInWithPassword: () => Promise.resolve({ data: { user: null }, error: new Error('Supabase is not configured') }),
-    signInWithOAuth: () => Promise.resolve({ error: new Error('Supabase is not configured') }),
-    signOut: () => Promise.resolve({ error: null }),
-  };
-
-  const handler: ProxyHandler<any> = {
-    get(target, prop) {
-      if (prop === 'auth') {
-        return authMock;
-      }
-      if (prop === 'from') {
-        return () => queryProxy;
-      }
-      return () => Promise.resolve({ data: null, error: null });
-    }
-  };
-  return new Proxy({}, handler) as any;
+  return proxy;
 };
 
 export const supabase: SupabaseClient = (supabaseUrl && supabaseAnonKey)

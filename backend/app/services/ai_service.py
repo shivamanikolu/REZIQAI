@@ -73,6 +73,8 @@ async def generate_completion(
         }
 
         # Attempt 1: Primary Groq API Key
+        primary_content = None
+        primary_tokens = None
         primary_key = settings.GROQ_API_KEY_PRIMARY or settings.GROQ_API_KEY
         if primary_key:
             try:
@@ -90,6 +92,8 @@ async def generate_completion(
                         result = response.json()
                         content = result["choices"][0]["message"]["content"]
                         if content and content.strip():
+                            primary_content = content
+                            primary_tokens = result.get("usage", {}).get("total_tokens", None)
                             # Perform response validation check
                             has_day_21 = "Day 21" in content
                             has_summary = "FINAL EXECUTIVE SUMMARY SNAPSHOT" in content
@@ -97,7 +101,6 @@ async def generate_completion(
                             
                             if has_day_21 and has_summary and has_bonus:
                                 latency = int((time.time() - start_time) * 1000)
-                                tokens = result.get("usage", {}).get("total_tokens", None)
                                 await log_ai_usage(
                                     user_id=user_id,
                                     endpoint=endpoint,
@@ -105,7 +108,7 @@ async def generate_completion(
                                     used_model=target_model,
                                     is_fallback=False,
                                     latency_ms=latency,
-                                    tokens_used=tokens
+                                    tokens_used=primary_tokens
                                 )
                                 return content
                             else:
@@ -117,6 +120,21 @@ async def generate_completion(
             except Exception as e:
                 err_msg = str(e)
                 print(f"Primary Groq API failed for DeepSeek: {err_msg}. Retrying with secondary key...")
+                # If secondary key is not configured and we have primary_content, return it
+                if not settings.GROQ_API_KEY_SECONDARY and primary_content:
+                    print("Secondary Groq API key is not configured. Falling back to using the unvalidated primary key response.")
+                    latency = int((time.time() - start_time) * 1000)
+                    await log_ai_usage(
+                        user_id=user_id,
+                        endpoint=endpoint,
+                        primary_model=target_model,
+                        used_model=f"{target_model} (Unvalidated Fallback)",
+                        is_fallback=False,
+                        latency_ms=latency,
+                        tokens_used=primary_tokens,
+                        error_message=f"Validation failed, accepted fallback: {err_msg}"
+                    )
+                    return primary_content
 
         # Attempt 2: Secondary Groq API Key (Failover)
         secondary_key = settings.GROQ_API_KEY_SECONDARY
@@ -446,7 +464,22 @@ async def generate_completion_stream(
                         error_message=f"All Groq keys failed. Last error: {str(e)}"
                     )
             else:
-                yield "\n[ERROR: Primary key stream failed, and secondary Groq key is not configured.]"
+                full_content = "".join(content_buffer)
+                if full_content.strip() and len(full_content) > 100:
+                    print("Primary key stream failed validation but secondary key is not configured. Keeping primary content stream.")
+                    latency = int((time.time() - start_time) * 1000)
+                    await log_ai_usage(
+                        user_id=user_id,
+                        endpoint=endpoint,
+                        primary_model=target_model,
+                        used_model=f"{target_model} (Unvalidated Stream Fallback)",
+                        is_fallback=False,
+                        latency_ms=latency,
+                        tokens_used=len(full_content) // 4,
+                        error_message="Validation failed, accepted primary stream fallback."
+                    )
+                else:
+                    yield "\n[ERROR: Primary key stream failed, and secondary Groq key is not configured.]"
         return
 
     # Native NVIDIA stream fallback for other endpoints (mock interview)
