@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/lib/supabaseClient';
 import { FileText, ChevronRight, Calendar, ArrowLeft, Download, Loader2, Trash2, ExternalLink } from 'lucide-react';
@@ -131,6 +132,7 @@ interface DatabaseReport {
 }
 
 export default function ReportsPage() {
+  const router = useRouter();
   const { user } = useAppStore();
   const [dbReports, setDbReports] = useState<DatabaseReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<DatabaseReport | null>(null);
@@ -299,6 +301,18 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-10 animate-fade-in-up w-full">
+      {/* Mobile Back Button */}
+      <div className="md:hidden">
+        <button
+          onClick={() => router.push('/dashboard')}
+          type="button"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-accent-soft bg-white/80 hover:bg-[#ECECE7]/60 text-text-primary rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Optimize
+        </button>
+      </div>
+
       <div>
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-2">
           Assessment Reports

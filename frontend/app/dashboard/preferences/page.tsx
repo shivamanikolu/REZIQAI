@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sliders, Save, CheckCircle2, Trash2, ShieldAlert, Cpu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Sliders, Save, CheckCircle2, Trash2, ShieldAlert, Cpu, ArrowLeft } from 'lucide-react';
 
 export default function PreferencesPage() {
+  const router = useRouter();
   const [saveLocalReports, setSaveLocalReports] = useState(true);
   const [fineTuningConsent, setFineTuningConsent] = useState(false);
   const [analyticsOptIn, setAnalyticsOptIn] = useState(true);
@@ -37,6 +39,18 @@ export default function PreferencesPage() {
 
   return (
     <div className="flex flex-col gap-10 animate-fade-in-up w-full max-w-[800px] mx-auto pb-10">
+      {/* Mobile Back Button */}
+      <div className="md:hidden">
+        <button
+          onClick={() => router.push('/dashboard')}
+          type="button"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-accent-soft bg-white/80 hover:bg-[#ECECE7]/60 text-text-primary rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Optimize
+        </button>
+      </div>
+
       {/* Header */}
       <div>
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-2 flex items-center gap-3">

@@ -1,25 +1,48 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, FileText } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function TermsPage() {
+  const router = useRouter();
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setHasSession(true);
+      }
+    };
+    checkSession();
+  }, []);
+
+  const handleBack = () => {
+    if (hasSession) {
+      router.push('/dashboard');
+    } else {
+      router.push('/');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col font-sans bg-bg-primary text-text-primary min-h-screen">
       {/* Navbar */}
       <header className="sticky top-0 z-50 w-full bg-[rgba(245,245,242,0.65)] backdrop-blur-xl border-b border-accent-soft/30">
         <div className="max-w-4xl mx-auto h-20 px-6 flex justify-between items-center">
-          <Link href="/" className="font-extrabold text-xl tracking-tight text-text-primary">
+          <Link href={hasSession ? "/dashboard" : "/"} className="font-extrabold text-xl tracking-tight text-text-primary">
             REZIQ
           </Link>
-          <Link
-            href="/"
-            className="flex items-center gap-2 border border-accent-soft hover:bg-[#ECECE7]/60 text-text-primary px-4 py-2 rounded-full text-xs font-bold transition-all"
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 border border-accent-soft hover:bg-[#ECECE7]/60 text-text-primary px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Home
-          </Link>
+            {hasSession ? "Back to Dashboard" : "Back to Home"}
+          </button>
         </div>
       </header>
 

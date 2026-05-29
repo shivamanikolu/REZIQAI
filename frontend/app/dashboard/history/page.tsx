@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/lib/supabaseClient';
 import { FileText, ChevronRight, Calendar, ArrowLeft, Download, Loader2, Trash2, ShieldAlert, Cpu, Timer, Database, CheckCircle2, XCircle } from 'lucide-react';
@@ -136,6 +137,7 @@ interface DatabaseHistory {
 }
 
 export default function HistoryPage() {
+  const router = useRouter();
   const { user } = useAppStore();
   const [dbHistory, setDbHistory] = useState<DatabaseHistory[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<DatabaseHistory | null>(null);
@@ -353,6 +355,18 @@ export default function HistoryPage() {
 
   return (
     <div className="flex flex-col gap-10 animate-fade-in-up w-full">
+      {/* Mobile Back Button */}
+      <div className="md:hidden">
+        <button
+          onClick={() => router.push('/dashboard')}
+          type="button"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-accent-soft bg-white/80 hover:bg-[#ECECE7]/60 text-text-primary rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Optimize
+        </button>
+      </div>
+
       <div>
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-2 flex items-center gap-3">
           <Database className="w-8 h-8 md:w-12 md:h-12 text-accent" />

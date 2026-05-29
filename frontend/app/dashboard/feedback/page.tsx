@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { getApiUrl } from '@/lib/env';
-import { MessageSquare, Star, Send, CheckCircle2, Loader2, ShieldAlert } from 'lucide-react';
+import { MessageSquare, Star, Send, CheckCircle2, Loader2, ShieldAlert, ArrowLeft } from 'lucide-react';
 
 export default function FeedbackPage() {
+  const router = useRouter();
   const { user } = useAppStore();
   const [rating, setRating] = useState(5);
   const [category, setCategory] = useState('General Feedback');
@@ -73,6 +75,18 @@ export default function FeedbackPage() {
 
   return (
     <div className="flex flex-col gap-10 animate-fade-in-up w-full max-w-[800px] mx-auto pb-10">
+      {/* Mobile Back Button */}
+      <div className="md:hidden">
+        <button
+          onClick={() => router.push('/dashboard')}
+          type="button"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-accent-soft bg-white/80 hover:bg-[#ECECE7]/60 text-text-primary rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Optimize
+        </button>
+      </div>
+
       {/* Header */}
       <div>
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-2 flex items-center gap-3">

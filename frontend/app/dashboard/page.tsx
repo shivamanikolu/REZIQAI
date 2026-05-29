@@ -195,7 +195,6 @@ export default function SkillGapPage() {
   const [resumeText, setResumeText] = useState('');
 
   // File Ingestion and Text Extraction States
-  const [isUploadOpen, setIsUploadOpen] = useState(true); // Open by default for premium onboarding
   const [uploadStatus, setUploadStatus] = useState<'default' | 'selected' | 'extracting' | 'success' | 'failed'>('default');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractionProgress, setExtractionProgress] = useState('');
@@ -925,40 +924,18 @@ export default function SkillGapPage() {
             {/* Resume Text Area (Plain Text, Textarea Only, Scrollable) */}
             <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center pl-1 pr-1">
-                <div className="flex items-center gap-3">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Candidate Resume Text</label>
-                  <button
-                    type="button"
-                    onClick={() => setIsUploadOpen(!isUploadOpen)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
-                      isUploadOpen
-                        ? 'border-accent bg-accent text-white shadow-premium'
-                        : 'border-accent-soft/70 hover:bg-[#ECECE7]/60 text-text-primary shadow-sm'
-                    }`}
-                  >
-                    <FileText className="w-3 h-3" />
-                    {isUploadOpen ? 'Hide Fetch Portal' : 'Fetch Resume'}
-                  </button>
-                </div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Candidate Resume Text</label>
                 <span className="text-[9px] text-text-muted font-bold tracking-wider">TEXT ONLY — ATS PARSE READY</span>
               </div>
 
               {/* Fetch Resume & Extraction Ingestion Panel */}
-              <AnimatePresence>
-                {isUploadOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                    animate={{ opacity: 1, height: 'auto', marginTop: 4 }}
-                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                    className="overflow-hidden w-full"
-                  >
-                    <div 
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragOver}
-                      onDrop={handleDrop}
-                      className="glass-panel rounded-[24px] border border-accent-soft/60 p-6 flex flex-col gap-5 relative group transition-all bg-[#ECECE7]/20 hover:bg-[#ECECE7]/35"
-                    >
+              <div className="w-full mt-1">
+                <div 
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragOver}
+                  onDrop={handleDrop}
+                  className="glass-panel rounded-[24px] border border-accent-soft/60 p-6 flex flex-col gap-5 relative group transition-all bg-[#ECECE7]/20 hover:bg-[#ECECE7]/35"
+                >
                       {/* Background Soft Glow */}
                       <div className="absolute inset-0 bg-gradient-to-tr from-[#ECECE7]/5 via-transparent to-white/10 rounded-[24px] pointer-events-none" />
 
@@ -1346,9 +1323,7 @@ export default function SkillGapPage() {
                         </div>
                       )}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
 
               <textarea
                 value={resumeText}
