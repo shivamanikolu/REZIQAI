@@ -1,7 +1,66 @@
+# Environment variables — NEVER commit these
 .env
 .env.local
-.env.*
-backend/.env
-backend/.env.local
-node_modules
-.next
+.env.development
+.env.production
+.env.staging
+.env.test
+*.env
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+.vercel/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+
+# Cache
+.cache/
+.parcel-cache/
+.turbo/
+
+# Supabase local dev (keep migrations, ignore local state)
+supabase/.branches/
+supabase/.temp/
+
+# Uploads / user data
+public/uploads/
+uploads/
+
+# Keys & certs
+*.pem
+*.key
+*.cert
+*.p12
