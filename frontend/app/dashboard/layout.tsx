@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/lib/supabaseClient';
+import { getCachedSession } from '@/lib/authHelper';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -24,11 +25,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, setUser } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCachedSession();
+      if (cached?.user) return false;
+    }
+    return true;
+  });
 
   // Rebuilt Auth Guard & Profile Sync (Robust implementation to prevent race conditions)
   useEffect(() => {
     let active = true;
+
+    // Optimistically hydrate session on first tick to ensure 0ms render delay
+    const cached = getCachedSession();
+    if (cached?.user) {
+      const sessionUser = cached.user;
+      setUser({
+        id: sessionUser.id,
+        email: sessionUser.email || '',
+        full_name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || 'Candidate',
+        avatar_url: sessionUser.user_metadata?.avatar_url || '',
+        auth_provider: sessionUser.app_metadata?.provider || 'email',
+      });
+      setIsInitializing(false);
+    }
 
     const syncUser = async (session: any) => {
       try {
@@ -100,10 +121,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setIsInitializing(false);
         router.replace('/');
       } else if (session?.user) {
-        await syncUser(session);
-        if (active) {
-          setIsInitializing(false);
-        }
+        // Fetch DB profile non-blockingly to resolve UI instantly
+        syncUser(session);
+        setIsInitializing(false);
       } else {
         setUser(null);
         setIsInitializing(false);

@@ -4,17 +4,33 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getCachedSession } from '@/lib/authHelper';
 import { ShieldAlert } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCachedSession();
+      if (cached?.user) return true;
+    }
+    return false;
+  });
 
   // Auto-redirect if already logged in
   useEffect(() => {
     let active = true;
+
+    // Check cached session on first client-side tick
+    const cached = getCachedSession();
+    if (cached?.user) {
+      router.replace('/dashboard');
+    } else {
+      setIsInitializing(false);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
 
