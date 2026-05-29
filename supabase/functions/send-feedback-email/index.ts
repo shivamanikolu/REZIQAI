@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// In-memory cache to prevent duplicate email dispatches during runtime warm phase
+// In-memory cache to prevent concurrent race conditions during function warm phase
 const processedSubmissions = new Set<string>();
 
 serve(async (req) => {
@@ -39,15 +39,15 @@ serve(async (req) => {
       );
     }
 
-    // 1. Check in-memory cache for duplicate dispatch
+    // 1. Check in-memory cache first for rapid double-clicks
     if (processedSubmissions.has(id)) {
       return new Response(
-        JSON.stringify({ success: true, message: "Email already dispatched for this feedback record." }),
+        JSON.stringify({ success: true, message: "Email already dispatched (cached)." }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 2. Query database to verify feedback record exists and prevent unauthenticated abuse
+    // 2. Query database to verify feedback record exists
     if (!supabaseUrl || !supabaseServiceRoleKey) {
       return new Response(
         JSON.stringify({ error: "Supabase environment configuration is missing." }),
@@ -66,6 +66,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Feedback record not found. Authorization failed." }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3. Check persistent database-backed flag to prevent duplicates across separate isolates
+    if (feedback.browser_metadata && feedback.browser_metadata.email_sent === true) {
+      return new Response(
+        JSON.stringify({ success: true, message: "Email already dispatched (database verified)." }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -142,7 +150,7 @@ serve(async (req) => {
     </html>
     `;
 
-    // 3. Dispatch secure email using Resend API
+    // 4. Dispatch secure email using Resend API
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -166,7 +174,18 @@ serve(async (req) => {
       );
     }
 
-    // Add to cache on successful dispatch
+    // 5. Update database record to flag that email has been successfully sent
+    const updatedBrowserMetadata = {
+      ...(browser_metadata || {}),
+      email_sent: true
+    };
+
+    await supabaseAdmin
+      .from('feedback')
+      .update({ browser_metadata: updatedBrowserMetadata })
+      .eq('id', id);
+
+    // Warm-phase cache update
     processedSubmissions.add(id);
 
     return new Response(
