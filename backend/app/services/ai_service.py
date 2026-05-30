@@ -210,7 +210,7 @@ async def generate_completion_with_fallback(
     # Calculate input tokens to stay under Groq TPM limit safely
     estimated_input_tokens = (len(prompt) + len(system_instruction)) // 4
     
-    target_completion = 4096
+    target_completion = 8192
     dynamic_max_tokens = settings.GROQ_TPM_LIMIT - estimated_input_tokens - 100
     if dynamic_max_tokens < 1024:
         dynamic_max_tokens = max(512, dynamic_max_tokens)
