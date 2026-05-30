@@ -162,6 +162,7 @@ async def analyze_skill_gap(request: SkillGapRequest):
         async def stream_generator():
             full_response = []
             try:
+                print(f"[STREAM START] Starting stream generator")
                 async for chunk in generate_completion_stream(
                     prompt=prompt,
                     system_instruction=system_instruction,
@@ -170,9 +171,13 @@ async def analyze_skill_gap(request: SkillGapRequest):
                     model=model_name,
                     fallback_allowed=True
                 ):
+                    print(f"[STREAM CHUNK] Got chunk length: {len(chunk)}")
                     full_response.append(chunk)
                     yield chunk
             except Exception as e:
+                import traceback
+                print(f"[STREAM ERROR] Exception: {str(e)}")
+                print(f"[STREAM TRACEBACK] {traceback.format_exc()}")
                 yield f"\n[ERROR: {str(e)}]"
                 return
             finally:
