@@ -1,9 +1,15 @@
 import random
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from app.db import get_db
+from app.services.auth_service import get_admin_user
+from app.services.rate_limiter import check_admin_rate_limit
 
-router = APIRouter(prefix="/api/admin", tags=["Admin Telemetry"])
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["Admin Telemetry"],
+    dependencies=[Depends(get_admin_user), Depends(check_admin_rate_limit)]
+)
 
 @router.get("/telemetry")
 async def get_telemetry_metrics():

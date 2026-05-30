@@ -496,10 +496,14 @@ export default function SkillGapPage() {
       }
       abortControllerRef.current = new AbortController();
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionToken = session?.access_token || '';
+
       const response = await fetch(`${getApiUrl()}/api/skill-gap/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
           job_title: trimmedTitle,

@@ -1,5 +1,6 @@
 # Environment variables — NEVER commit these
 .env
+.env*
 .env.local
 .env.development
 .env.production
@@ -41,6 +42,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+logs/
+tmp/
 
 # Testing
 coverage/
@@ -50,6 +53,7 @@ coverage/
 .cache/
 .parcel-cache/
 .turbo/
+cache/
 
 # Supabase local dev (keep migrations, ignore local state)
 supabase/.branches/
@@ -63,4 +67,5 @@ uploads/
 *.pem
 *.key
 *.cert
+*.crt
 *.p12

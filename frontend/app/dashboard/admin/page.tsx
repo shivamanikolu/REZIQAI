@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '@/lib/env';
+import { supabase } from '@/lib/supabaseClient';
 import { Cpu, ShieldCheck, Activity, Terminal, ShieldAlert, Heart, MessageSquare, Trash2, CheckSquare, Eye, Filter, ArrowUpDown } from 'lucide-react';
 
 interface FeedbackItem {
@@ -39,14 +40,20 @@ export default function AdminPage() {
   const fetchAdminData = async () => {
     try {
       const apiUrl = getApiUrl();
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionToken = session?.access_token || '';
+
+      const headers = {
+        'Authorization': `Bearer ${sessionToken}`
+      };
       
       // Fetch metrics
-      const metRes = await fetch(`${apiUrl}/api/admin/telemetry`);
+      const metRes = await fetch(`${apiUrl}/api/admin/telemetry`, { headers });
       const metData = await metRes.json();
       setTelemetry(metData);
 
       // Fetch feedback
-      const feedRes = await fetch(`${apiUrl}/api/admin/feedback`);
+      const feedRes = await fetch(`${apiUrl}/api/admin/feedback`, { headers });
       const feedData = await feedRes.json();
       setFeedbacks(feedData);
     } catch (err) {
@@ -66,8 +73,14 @@ export default function AdminPage() {
     }
     setActionLoadingId(id);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionToken = session?.access_token || '';
+
       const res = await fetch(`${getApiUrl()}/api/admin/feedback/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
       });
       if (!res.ok) throw new Error('Delete failed.');
       setFeedbacks((prev) => prev.filter((f) => f.id !== id));
@@ -82,8 +95,14 @@ export default function AdminPage() {
   const handleReviewFeedback = async (id: string) => {
     setActionLoadingId(id);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionToken = session?.access_token || '';
+
       const res = await fetch(`${getApiUrl()}/api/admin/feedback/${id}/review`, {
         method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
       });
       if (!res.ok) throw new Error('Update failed.');
       

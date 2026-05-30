@@ -349,7 +349,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <p className="text-sm font-extrabold text-text-primary">{user?.full_name}</p>
                 <p className="text-[10px] text-text-muted">{user?.email}</p>
               </div>
-              <button onClick={() => setMobileMenuOpen(false)} className="w-8 h-8 rounded-full bg-[#ECECE7]/55 flex items-center justify-center text-text-secondary">
+              <button 
+                onClick={() => setMobileMenuOpen(false)} 
+                aria-label="Close navigation drawer"
+                className="w-8 h-8 rounded-full bg-[#ECECE7]/55 flex items-center justify-center text-text-secondary"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>

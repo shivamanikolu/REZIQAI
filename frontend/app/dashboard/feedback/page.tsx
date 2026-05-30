@@ -74,11 +74,15 @@ export default function FeedbackPage() {
         }
       };
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionToken = session?.access_token || '';
+
       // Step 2: Save feedback into Supabase database via FastAPI backend
       const res = await fetch(`${getApiUrl()}/api/feedback/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
         },
         body: JSON.stringify(payload),
       });

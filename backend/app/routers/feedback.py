@@ -1,11 +1,13 @@
 from typing import Optional, Any, Dict
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 import httpx
 from datetime import datetime
 
 from app.config import settings
 from app.db import get_db
+from app.services.auth_service import get_current_user
+from app.services.rate_limiter import check_feedback_rate_limit
 
 router = APIRouter(prefix="/api/feedback", tags=["Feedback System"])
 
@@ -90,7 +92,7 @@ async def send_resend_email(req: FeedbackSubmitRequest):
     except Exception as e:
         print(f"Resend Exception: {e}")
 
-@router.post("/submit")
+@router.post("/submit", dependencies=[Depends(check_feedback_rate_limit), Depends(get_current_user)])
 async def submit_feedback(req: FeedbackSubmitRequest):
     db = get_db()
     if not db:

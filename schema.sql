@@ -126,9 +126,6 @@ CREATE POLICY "Users can delete own history" ON public.history
 
 
 -- 4. Feedback RLS Policies
-CREATE POLICY "Anyone can submit feedback" ON public.feedback
-    FOR INSERT WITH CHECK (TRUE);
-
 CREATE POLICY "Users can view own feedback or admins can view all" ON public.feedback
     FOR SELECT USING (
         auth.uid() = user_id OR 
@@ -158,9 +155,6 @@ CREATE POLICY "Allow public read check of admin status" ON public.admin_users
 
 
 -- 6. AI Usage Logs RLS Policies
-CREATE POLICY "Allow public insert of logs" ON public.ai_usage_logs
-    FOR INSERT WITH CHECK (TRUE);
-
 CREATE POLICY "Admins can view all logs" ON public.ai_usage_logs
     FOR SELECT USING (
         EXISTS (
