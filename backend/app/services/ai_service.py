@@ -525,6 +525,7 @@ async def generate_completion_stream(
         # VERCEL TRIGGER COMMENT: Force redeployment.
 
         GROQ_MAX_OUTPUT_TOKENS = 8192
+        print(f"[STREAM DEBUG] target_model={target_model}, keys_to_try will have {len([k for k in [settings.GROQ_API_KEY_PRIMARY or settings.GROQ_API_KEY, settings.GROQ_API_KEY_SECONDARY] if k])} keys")
 
         groq_stream_payload = {
             "model": target_model,
