@@ -516,7 +516,7 @@ async def generate_completion_stream(
     target_model = model or settings.GROQ_MODEL
     
     # Check if this is the llama-3.3-70b-versatile / skill-gap request
-    if target_model == "llama-3.3-70b-versatile" or endpoint == "/api/skill-gap/analyze":
+    if True:
         # TRUE REAL-TIME STREAMING FIX
         # Streams tokens directly from Groq to the browser as they arrive.
         # This keeps Vercel's streaming connection alive for up to 300 seconds
