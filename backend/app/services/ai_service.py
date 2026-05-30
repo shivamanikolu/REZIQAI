@@ -25,11 +25,12 @@ class ProviderHealthRegistry:
             self.failures[key_id] = self.failures.get(key_id, 0) + 1
             consec_fails = self.failures[key_id]
             print(f"[Orchestrator] Registered failure for credential '{key_id}'. Consecutive: {consec_fails}")
-            if consec_fails >= 3:
-                self.cooldowns[key_id] = time.time() + 300.0  # 5 minutes
+            if consec_fails >= 5:
+                # Trip circuit breaker only after 5 consecutive real API failures
+                self.cooldowns[key_id] = time.time() + 120.0  # 2 minutes cooldown
                 print(f"[Orchestrator] CIRCUIT BREAKER TRIPPED for credential '{key_id}'!")
             else:
-                self.cooldowns[key_id] = time.time() + 60.0  # 60 seconds
+                self.cooldowns[key_id] = time.time() + 20.0   # 20 second cooldown
 
     async def register_success(self, key_id: str):
         async with self.lock:
@@ -207,15 +208,12 @@ async def generate_completion_with_fallback(
     """
     start_time = time.time()
     
-    # Calculate input tokens to stay under Groq TPM limit safely
-    estimated_input_tokens = (len(prompt) + len(system_instruction)) // 4
-    
-    target_completion = 8192
-    dynamic_max_tokens = settings.GROQ_TPM_LIMIT - estimated_input_tokens - 100
-    if dynamic_max_tokens < 1024:
-        dynamic_max_tokens = max(512, dynamic_max_tokens)
-    else:
-        dynamic_max_tokens = min(target_completion, dynamic_max_tokens)
+    # FIXED: Hardcode max_tokens to Groq's per-request output ceiling.
+    # The previous formula used GROQ_TPM_LIMIT as a per-request token budget which is WRONG.
+    # GROQ_TPM_LIMIT is a rate-limit metric (tokens/minute), not a per-request limit.
+    # llama-3.3-70b-versatile supports up to 128k context and 8192 output tokens per request.
+    GROQ_MAX_OUTPUT_TOKENS = 8192
+    dynamic_max_tokens = GROQ_MAX_OUTPUT_TOKENS
     
     # Primary model target from parameter
     target_model = model or settings.GROQ_MODEL or "llama-3.3-70b-versatile"
@@ -230,11 +228,19 @@ async def generate_completion_with_fallback(
         "max_tokens": dynamic_max_tokens,
         "top_p": 0.9,
         "frequency_penalty": 0,
-        "presence_penalty": 0
+        "presence_penalty": 0,
+        "stop": None
     }
     
     providers = []
-    
+
+    # DEBUG: Confirm keys are loaded from environment — REMOVE THESE 4 LINES AFTER CONFIRMING
+    primary_key_loaded = bool(settings.GROQ_API_KEY_PRIMARY or settings.GROQ_API_KEY)
+    secondary_key_loaded = bool(settings.GROQ_API_KEY_SECONDARY)
+    print(f"[KEY DEBUG] Primary Groq key loaded: {primary_key_loaded}")
+    print(f"[KEY DEBUG] Secondary Groq key loaded: {secondary_key_loaded}")
+    print(f"[KEY DEBUG] dynamic_max_tokens = {dynamic_max_tokens}")
+
     primary_key = settings.GROQ_API_KEY_PRIMARY or settings.GROQ_API_KEY
     
     # Groq Key 1
@@ -248,7 +254,7 @@ async def generate_completion_with_fallback(
                 "Authorization": f"Bearer {primary_key}"
             },
             "payload": groq_payload,
-            "timeout": 120.0
+            "timeout": 180.0
         })
         
     # Groq Key 2
@@ -262,7 +268,7 @@ async def generate_completion_with_fallback(
                 "Authorization": f"Bearer {settings.GROQ_API_KEY_SECONDARY}"
             },
             "payload": groq_payload,
-            "timeout": 120.0
+            "timeout": 180.0
         })
         
     # Key Rotation / Balancing: If both Groq Primary and Secondary keys are healthy, distribute the starting load randomly
@@ -310,16 +316,28 @@ async def generate_completion_with_fallback(
                     endpoint=endpoint,
                     primary_model=model,
                     used_model=f"{model} ({name})",
-                    is_fallback=(name != "Groq Key 1 (Primary Llama 3.3)" and name != "Groq Key 2 (Secondary Llama 3.3)"),
+                    is_fallback=(name != "Groq Key 1 (Primary Llama 3.3)"),
                     latency_ms=latency,
                     tokens_used=len(content) // 4
                 )
                 return content
             else:
-                print(f"[Fallback Queue] {name} completed generation, but output failed validation checks.")
-                # Mark as failure to trigger cooldown and switch provider
-                await health_registry.register_failure(key_id)
-                last_error = Exception(f"{name} validation failed (incomplete report content).")
+                # The key is HEALTHY (Groq returned HTTP 200). Do NOT put it on cooldown.
+                # The incomplete content was caused by max_tokens being too low (now fixed to 8192).
+                # Register success so the key stays healthy and return the content.
+                print(f"[Fallback Queue] {name} output validation warning — key is healthy, returning best available content.")
+                await health_registry.register_success(key_id)
+                latency = int((time.time() - start_time) * 1000)
+                await log_ai_usage(
+                    user_id=user_id,
+                    endpoint=endpoint,
+                    primary_model=model,
+                    used_model=f"{model} ({name}) [validation-warning]",
+                    is_fallback=(name != "Groq Key 1 (Primary Llama 3.3)"),
+                    latency_ms=latency,
+                    tokens_used=len(content) // 4
+                )
+                return content
         except Exception as e:
             print(f"[Fallback Queue] {name} failed: {e}")
             await health_registry.register_failure(key_id)

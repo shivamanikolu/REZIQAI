@@ -195,13 +195,16 @@ async def analyze_skill_gap(request: SkillGapRequest):
 
     # Non-streaming flow
     try:
-        ai_response = await generate_completion(
-            prompt=prompt,
-            system_instruction=system_instruction,
-            user_id=request.user_id,
-            endpoint="/api/skill-gap/analyze",
-            model=model_name,
-            fallback_allowed=True
+        ai_response = await asyncio.wait_for(
+            generate_completion(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                user_id=request.user_id,
+                endpoint="/api/skill-gap/analyze",
+                model=model_name,
+                fallback_allowed=True
+            ),
+            timeout=180.0
         )
         # Parse scores to return to telemetry logs
         scores = parse_scores_from_markdown(ai_response)

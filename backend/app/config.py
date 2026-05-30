@@ -22,7 +22,14 @@ class Settings:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_TPM_LIMIT: int = int(os.getenv("GROQ_TPM_LIMIT", "12000"))
+    # GROQ_TPM_LIMIT = tokens-per-minute rate limit across ALL requests on Groq free tier.
+    # This is a rate-limit metric, NOT a per-request max_tokens budget.
+    # NEVER use this value as max_tokens in Groq API calls.
+    GROQ_TPM_LIMIT: int = int(os.getenv("GROQ_TPM_LIMIT", "6000"))
+
+    # Hard per-request output token ceiling for llama-3.3-70b-versatile on Groq.
+    # This is the correct value to pass as max_tokens in every Groq API call.
+    GROQ_MAX_OUTPUT_TOKENS: int = 8192
 
     # Resend configuration
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
