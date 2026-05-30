@@ -24,7 +24,7 @@ class SkillGapRequest(BaseModel):
     resume_text: str
     prompt: Optional[str] = None
     user_id: Optional[str] = None
-    stream: Optional[bool] = False
+    stream: bool = True
 
 def parse_scores_from_markdown(markdown_text: str) -> dict:
     """Helper to parse scores from Markdown output using regex to persist in telemetry db."""
@@ -158,7 +158,7 @@ async def analyze_skill_gap(request: SkillGapRequest):
         raise validation_err
 
     # Streaming flow
-    if request.stream:
+    if True:
         async def stream_generator():
             full_response = []
             try:
