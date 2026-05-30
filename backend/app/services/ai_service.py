@@ -517,44 +517,138 @@ async def generate_completion_stream(
     
     # Check if this is the llama-3.3-70b-versatile / skill-gap request
     if target_model == "llama-3.3-70b-versatile" or endpoint == "/api/skill-gap/analyze":
-        try:
-            # Start completion in background task
-            task = asyncio.create_task(
-                generate_completion_with_fallback(
-                    prompt=prompt,
-                    system_instruction=system_instruction,
-                    user_id=user_id,
-                    endpoint=endpoint,
-                    model=target_model
-                )
-            )
-            
-            # Send keep-alive HTML comment chunks to avoid Vercel timeouts while generating
-            while not task.done():
-                yield "<!-- keep-alive -->\n"
-                await asyncio.sleep(1.5)
-                
-            # Retrieve completed content
-            content = await task
-            
-            # Stream the complete content back to client in simulated chunks
-            chunk_size = 200
-            for i in range(0, len(content), chunk_size):
-                yield content[i:i+chunk_size]
-                await asyncio.sleep(0.01)
-                
-        except Exception as e:
-            error_msg = str(e)
-            # Sanitize error message to hide raw API/provider keys and endpoints
-            if "returned status code 429" in error_msg or "rate limit" in error_msg.lower() or "overloaded" in error_msg.lower() or "timeout" in error_msg.lower():
-                error_msg = "REZIQ career intelligence engine is temporarily stabilizing. Retrying automatically..."
-            elif "validation failed" in error_msg or "incomplete report" in error_msg:
-                error_msg = "REZIQ career intelligence engine is optimizing generation formatting. Please retry in a moment."
-            elif "REZIQ intelligence engine" not in error_msg:
-                error_msg = "REZIQ career intelligence engine is temporarily stabilizing. Please retry in a moment."
-            yield f"\n[ERROR: {error_msg}]"
-        return
+        # TRUE REAL-TIME STREAMING FIX
+        # Streams tokens directly from Groq to the browser as they arrive.
+        # This keeps Vercel's streaming connection alive for up to 300 seconds
+        # on the Hobby plan — no fake keep-alive pings needed.
+        # Primary key is tried first. If it fails, secondary key is used.
 
+        GROQ_MAX_OUTPUT_TOKENS = 8192
+
+        groq_stream_payload = {
+            "model": target_model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.4,
+            "max_tokens": GROQ_MAX_OUTPUT_TOKENS,
+            "top_p": 0.9,
+            "frequency_penalty": 0,
+            "presence_penalty": 0,
+            "stop": None,
+            "stream": True
+        }
+
+        primary_key = settings.GROQ_API_KEY_PRIMARY or settings.GROQ_API_KEY
+        secondary_key = settings.GROQ_API_KEY_SECONDARY
+
+        keys_to_try = []
+        if primary_key:
+            keys_to_try.append({
+                "name": "Groq Key 1 (Primary)",
+                "key": primary_key
+            })
+        if secondary_key:
+            keys_to_try.append({
+                "name": "Groq Key 2 (Secondary)",
+                "key": secondary_key
+            })
+
+        start_time = time.time()
+        last_error = None
+
+        for key_entry in keys_to_try:
+            key_name = key_entry["name"]
+            api_key = key_entry["key"]
+
+            print(f"[True Stream] Attempting real stream with {key_name}...")
+
+            try:
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}"
+                }
+
+                async with httpx.AsyncClient(timeout=180.0) as client:
+                    async with client.stream(
+                        "POST",
+                        settings.GROQ_API_URL,
+                        json=groq_stream_payload,
+                        headers=headers
+                    ) as response:
+
+                        if response.status_code == 429:
+                            print(f"[True Stream] {key_name} rate limited (429). Trying next key...")
+                            last_error = f"{key_name} rate limited"
+                            continue
+
+                        if response.status_code == 401:
+                            print(f"[True Stream] {key_name} unauthorized (401). Check API key value.")
+                            last_error = f"{key_name} unauthorized"
+                            continue
+
+                        if response.status_code != 200:
+                            print(f"[True Stream] {key_name} returned {response.status_code}. Trying next key...")
+                            last_error = f"{key_name} returned {response.status_code}"
+                            continue
+
+                        print(f"[True Stream] {key_name} connected. Streaming tokens to client...")
+
+                        full_content = []
+
+                        async for line in response.aiter_lines():
+                            line = line.strip()
+                            if not line:
+                                continue
+                            if line.startswith("data:"):
+                                data_str = line[5:].strip()
+                                if data_str == "[DONE]":
+                                    break
+                                try:
+                                    data_json = json.loads(data_str)
+                                    choices = data_json.get("choices", [])
+                                    if choices:
+                                        delta = choices[0].get("delta", {})
+                                        chunk_text = delta.get("content", "")
+                                        if chunk_text:
+                                            full_content.append(chunk_text)
+                                            yield chunk_text  # Send each token immediately to browser
+                                except Exception:
+                                    continue
+
+                        # Stream completed successfully
+                        complete_text = "".join(full_content)
+                        latency = int((time.time() - start_time) * 1000)
+                        print(f"[True Stream] {key_name} stream complete. Length: {len(complete_text)} chars. Latency: {latency}ms")
+
+                        await log_ai_usage(
+                            user_id=user_id,
+                            endpoint=endpoint,
+                            primary_model=target_model,
+                            used_model=f"{target_model} ({key_name}) [true-stream]",
+                            is_fallback=(key_name != "Groq Key 1 (Primary)"),
+                            latency_ms=latency,
+                            tokens_used=len(complete_text) // 4
+                        )
+                        return  # Success — stop trying other keys
+
+            except httpx.TimeoutException:
+                print(f"[True Stream] {key_name} timed out after 180s. Trying next key...")
+                last_error = f"{key_name} timeout"
+                continue
+            except httpx.NetworkError as net_err:
+                print(f"[True Stream] {key_name} network error: {net_err}. Trying next key...")
+                last_error = f"{key_name} network error"
+                continue
+            except Exception as e:
+                print(f"[True Stream] {key_name} unexpected error: {e}. Trying next key...")
+                last_error = str(e)
+                continue
+
+        # All keys failed
+        print(f"[True Stream] All keys failed. Last error: {last_error}")
+        yield f"\n[ERROR: REZIQ intelligence engine is temporarily stabilizing. Please retry in a moment.]"
         return
 
     # Native NVIDIA stream fallback for other endpoints (mock interview)
