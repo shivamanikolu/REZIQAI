@@ -1,17 +1,55 @@
 {
-  "functions": {
-    "api/main.py": {
-      "maxDuration": 300
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/next"
+    },
+    {
+      "src": "backend/main.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 300
+      }
     }
-  },
+  ],
+  "routes": [
+    {
+      "src": "/_/backend/(.*)",
+      "dest": "backend/main.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/$1"
+    }
+  ],
   "headers": [
     {
       "source": "/fonts/(.*)",
-      "headers": [{"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     },
     {
       "source": "/_next/static/(.*)",
-      "headers": [{"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.webp|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }
