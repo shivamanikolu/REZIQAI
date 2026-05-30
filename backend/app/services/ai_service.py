@@ -544,6 +544,12 @@ async def generate_completion_stream(
         primary_key = settings.GROQ_API_KEY_PRIMARY or settings.GROQ_API_KEY
         secondary_key = settings.GROQ_API_KEY_SECONDARY
 
+        # DEBUG: Confirm keys are loaded from environment in streaming path
+        primary_key_loaded = bool(primary_key)
+        secondary_key_loaded = bool(secondary_key)
+        print(f"[STREAM KEY DEBUG] Primary Groq key loaded: {primary_key_loaded}")
+        print(f"[STREAM KEY DEBUG] Secondary Groq key loaded: {secondary_key_loaded}")
+
         keys_to_try = []
         if primary_key:
             keys_to_try.append({
