@@ -1,20 +1,6 @@
-const required = [
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-];
-
-for (const key of required) {
-  if (!process.env[key]) {
-    // Only warn during local build, or allow soft warning to not break local environments if variables are missing
-    console.warn(`Warning: Missing environment variable: ${key}`);
-  }
-}
-
 export const env = {
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  groqApiKey: process.env.GROQ_API_KEY || '',
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bpeawtetkramoukhkpih.supabase.co',
+  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZWF3dGV0a3JhbW91a2hrcGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTk0MzEsImV4cCI6MjA5NTUzNTQzMX0.Bg5VwRD1xa61I0AyGgQA7wkZbzv0Ulx5MUX8rA6W5jc',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://reziqai.vercel.app',
 };
 
