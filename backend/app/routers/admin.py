@@ -61,7 +61,7 @@ async def get_telemetry_metrics():
                     "id": "1",
                     "timestamp": "2026-05-27T12:04:12Z",
                     "endpoint": "/api/skill-gap/analyze",
-                    "primary": "deepseek-r1-distill-llama-70b",
+                    "primary": "llama-3.3-70b-versatile",
                     "fallback_used": "llama-3.1-8b-instant",
                     "error": "Primary API key rate limited: 429 Too Many Requests.",
                     "latency": 2410
@@ -70,7 +70,7 @@ async def get_telemetry_metrics():
                     "id": "2",
                     "timestamp": "2026-05-27T14:42:30Z",
                     "endpoint": "/api/skill-gap/analyze",
-                    "primary": "deepseek-r1-distill-llama-70b",
+                    "primary": "llama-3.3-70b-versatile",
                     "fallback_used": "llama-3.1-8b-instant",
                     "error": "TimeoutException: Groq API endpoint unresponsive.",
                     "latency": 3120

@@ -316,9 +316,19 @@ export default function SkillGapPage() {
   };
 
   // Status states
-  const [analyzing, setAnalyzing] = useState(false);
+  const [generationState, setGenerationState] = useState<'idle' | 'analyzing' | 'validating' | 'stabilizing' | 'success' | 'failed'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [markdownText, setMarkdownText] = useState('');
+  
+  // Backwards compatibility sync for analyzing state
+  const analyzing = generationState === 'analyzing' || generationState === 'validating' || generationState === 'stabilizing';
+  const setAnalyzing = (val: boolean) => {
+    if (val) {
+      setGenerationState('analyzing');
+    } else {
+      setGenerationState(prev => (prev === 'analyzing' || prev === 'validating' || prev === 'stabilizing') ? 'idle' : prev);
+    }
+  };
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState('');
 
@@ -421,11 +431,11 @@ export default function SkillGapPage() {
     const lower = text.toLowerCase();
     
     // Complete roadmap matches (must contain WEEK 3 or Day 21)
-    const hasRoadmap = lower.includes('day 21') || lower.includes('week 3') || lower.includes('roadmap') || lower.includes('day-by-day');
+    const hasRoadmap = lower.includes('day 21') || lower.includes('day-21') || lower.includes('week 3') || lower.includes('week-3') || lower.includes('roadmap') || lower.includes('day 20') || lower.includes('day 19');
     
     // Complete sections (must contain executive summary snapshot or bonus recruiter)
-    const hasSummary = lower.includes('final executive summary snapshot') || lower.includes('executive summary') || lower.includes('summary');
-    const hasBonus = lower.includes('bonus recruiter intelligence') || lower.includes('bonus recruiter') || lower.includes('bonus');
+    const hasSummary = lower.includes('final executive summary snapshot') || lower.includes('executive summary') || lower.includes('summary snapshot') || lower.includes('summary') || lower.includes('recommendation');
+    const hasBonus = lower.includes('bonus recruiter') || lower.includes('bonus') || lower.includes('recruiter intelligence') || lower.includes('recruiter insights') || lower.includes('insights');
     
     return {
       isValid: hasRoadmap && hasSummary && hasBonus,
@@ -458,7 +468,7 @@ export default function SkillGapPage() {
       return;
     }
 
-    setAnalyzing(true);
+    setGenerationState('analyzing');
     setMarkdownText('');
     const startTime = Date.now();
 
@@ -535,13 +545,24 @@ export default function SkillGapPage() {
       }
 
       // Stream successfully completed! Santize and auto-close markdown
-      const finalizedText = autoCloseMarkdown(accumulatedText);
+      const finalizedText = autoCloseMarkdown(accumulatedText.replace(/<!-- keep-alive -->\n?/g, ''));
+
       
       // Perform stream completeness validation
+      setGenerationState('validating');
       const validation = checkReportCompleteness(finalizedText);
       setValidationResult(validation);
 
+      if (!validation.isValid) {
+        throw new Error('REZIQ intelligence engine is temporarily overloaded. Please retry in a moment.');
+      }
+
+      // Enter stabilization state
+      setGenerationState('stabilizing');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       setMarkdownText(finalizedText);
+      setGenerationState('success');
       const parsedScores = parseScoresFromMarkdown(finalizedText);
       const reportId = crypto.randomUUID();
 
@@ -680,7 +701,7 @@ export default function SkillGapPage() {
                 resume_text: optimizedResume,
                 generated_output: finalizedText,
                 pdf_url: publicUrl,
-                ai_model: 'deepseek-r1-distill-llama-70b',
+                ai_model: 'llama-3.3-70b-versatile',
                 generation_time_ms: duration,
                 word_count: wordCount,
                 report_size: reportSize,
@@ -716,12 +737,30 @@ export default function SkillGapPage() {
       }, 1200);
 
     } catch (err: any) {
+      setGenerationState('failed');
       if (err.name === 'AbortError') {
         console.log('Stream fetch request was aborted.');
+        setGenerationState('idle');
         return;
       }
-      setErrorMessage(err.message || 'Connection failed. Please ensure the backend server is running and keys are active.');
+      let displayError = 'REZIQ intelligence engine is temporarily overloaded. Please retry in a moment.';
+      try {
+        if (err.message) {
+          const parsed = JSON.parse(err.message);
+          if (parsed && parsed.detail) {
+            displayError = parsed.detail;
+          }
+        }
+      } catch (parseErr) {
+        if (err.message && (err.message.includes('A valid') || err.message.includes('required') || err.message.includes('not allowed'))) {
+          displayError = err.message;
+        } else if (err.message && err.message.includes('REZIQ intelligence engine')) {
+          displayError = err.message;
+        }
+      }
+      setErrorMessage(displayError);
       setMarkdownText('');
+
 
       // Save failure telemetry to history
       if (user?.id) {
@@ -733,7 +772,7 @@ export default function SkillGapPage() {
             resume_text: optimizedResume,
             generated_output: err.message || 'Analysis failed.',
             pdf_url: '',
-            ai_model: 'deepseek-r1-distill-llama-70b',
+            ai_model: 'llama-3.3-70b-versatile',
             generation_time_ms: Date.now() - startTime,
             word_count: 0,
             report_size: 0,

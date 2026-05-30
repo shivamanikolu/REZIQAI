@@ -1,4 +1,5 @@
 import re
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -8,6 +9,10 @@ from app.services.ai_service import generate_completion, generate_completion_str
 from app.prompts import SKILL_GAP_MASTER_PROMPT
 from app.config import settings
 from app.db import get_db
+
+# Thread-safe in-memory registry to track active generation requests per user
+active_generations = set()
+generation_lock = asyncio.Lock()
 
 router = APIRouter(prefix="/api/skill-gap", tags=["Skill Gap"])
 
@@ -63,52 +68,70 @@ def parse_scores_from_markdown(markdown_text: str) -> dict:
 
 @router.post("/analyze")
 async def analyze_skill_gap(request: SkillGapRequest):
-    # Validate inputs
-    job_title = request.job_title.strip()
-    resume_text = request.resume_text.strip()
-    job_link = request.job_link.strip()
+    user_identifier = request.user_id or "anonymous"
     
-    # Truncate resume text if excessively long to avoid Groq 413/TPM limit
-    if len(resume_text) > 12000:
-        resume_text = resume_text[:12000] + "\n[Resume text truncated for length optimization]"
-    
-    # Enforce strict input validation rules
-    if not job_title or job_title.lower() in ["placeholder", "job title", "enter job title"]:
-        raise HTTPException(status_code=400, detail="A valid Job Title is required. Placeholder or empty inputs are not allowed.")
-    if not resume_text or resume_text.lower() in ["placeholder", "resume text", "enter resume text", "paste your resume here"]:
-        raise HTTPException(status_code=400, detail="A valid Resume Text is required. Placeholder or empty inputs are not allowed.")
-    if not job_link or job_link.lower() in ["placeholder", "job link", "enter job link"]:
-        raise HTTPException(status_code=400, detail="A valid Job Posting Link is required. Placeholder or empty inputs are not allowed.")
+    # Mutex lock checking
+    async with generation_lock:
+        if user_identifier in active_generations:
+            raise HTTPException(
+                status_code=429,
+                detail="A forensic career analysis is already in progress for this profile. Please wait until it completes."
+            )
+        active_generations.add(user_identifier)
 
-    # Try to extract candidate name from the first non-empty lines
-    candidate_name = "Candidate"
-    lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
-    if lines:
-        candidate_name = lines[0][:50]
+    try:
+        # Validate inputs
+        job_title = request.job_title.strip()
+        resume_text = request.resume_text.strip()
+        job_link = request.job_link.strip()
+        
+        # Truncate resume text if excessively long to avoid Groq 413/TPM limit
+        if len(resume_text) > 12000:
+            resume_text = resume_text[:12000] + "\n[Resume text truncated for length optimization]"
+        
+        # Enforce strict input validation rules
+        if not job_title or job_title.lower() in ["placeholder", "job title", "enter job title"]:
+            raise HTTPException(status_code=400, detail="A valid Job Title is required. Placeholder or empty inputs are not allowed.")
+        if not resume_text or resume_text.lower() in ["placeholder", "resume text", "enter resume text", "paste your resume here"]:
+            raise HTTPException(status_code=400, detail="A valid Resume Text is required. Placeholder or empty inputs are not allowed.")
+        if not job_link or job_link.lower() in ["placeholder", "job link", "enter job link"]:
+            raise HTTPException(status_code=400, detail="A valid Job Posting Link is required. Placeholder or empty inputs are not allowed.")
 
-    # Use prompt sent by client (containing frontend master prompt) or construct fallback on backend
-    if request.prompt:
-        prompt = request.prompt
-    else:
-        prompt = SKILL_GAP_MASTER_PROMPT.replace("{job_role}", job_title)\
-                                        .replace("{job_link_display}", job_link)\
-                                        .replace("{resume_text}", resume_text)\
-                                        .replace("{candidate_name_if_available}", candidate_name)
+        # Try to extract candidate name from the first non-empty lines
+        candidate_name = "Candidate"
+        lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
+        if lines:
+            candidate_name = lines[0][:50]
 
-    system_instruction = (
-        "You are REZIQ FORENSIC ENGINE X — an elite AI career intelligence system engineered for deep recruiter-grade hiring analysis. "
-        "Generate the requested report exactly following the formatting and depth instructions.\n"
-        "STRICT SYSTEM RULES:\n"
-        "- NEVER summarize roadmap\n"
-        "- NEVER say 'continue for remaining days'\n"
-        "- ALWAYS complete ALL 21 DAYS\n"
-        "- ALWAYS complete ALL sections\n"
-        "- ALWAYS provide FULL tables\n"
-        "- ALWAYS provide FULL resources\n"
-        "- ALWAYS provide FULL explanations"
-    )
-    
-    model_name = "deepseek-r1-distill-llama-70b"
+        # Use prompt sent by client (containing frontend master prompt) or construct fallback on backend
+        if request.prompt:
+            prompt = request.prompt
+        else:
+            prompt = SKILL_GAP_MASTER_PROMPT.replace("{job_role}", job_title)\
+                                            .replace("{job_link_display}", job_link)\
+                                            .replace("{resume_text}", resume_text)\
+                                            .replace("{candidate_name_if_available}", candidate_name)
+
+        system_instruction = (
+            "You are REZIQ FORENSIC ENGINE X — an elite AI career intelligence system engineered for deep recruiter-grade hiring analysis. "
+            "Generate the requested report exactly following the formatting and depth instructions.\n"
+            "STRICT SYSTEM RULES:\n"
+            "- NEVER summarize roadmap\n"
+            "- NEVER say 'continue for remaining days'\n"
+            "- ALWAYS complete ALL 21 DAYS\n"
+            "- ALWAYS complete ALL sections\n"
+            "- ALWAYS provide FULL tables\n"
+            "- ALWAYS provide FULL resources\n"
+            "- ALWAYS provide FULL explanations"
+        )
+        
+        model_name = "llama-3.3-70b-versatile"
+
+    except Exception as validation_err:
+        # If input validation fails before delegation to streaming/non-streaming, release mutex
+        async with generation_lock:
+            active_generations.discard(user_identifier)
+        raise validation_err
 
     # Streaming flow
     if request.stream:
@@ -128,16 +151,19 @@ async def analyze_skill_gap(request: SkillGapRequest):
             except Exception as e:
                 yield f"\n[ERROR: {str(e)}]"
                 return
+            finally:
+                # Release the user-specific active generation lock
+                async with generation_lock:
+                    active_generations.discard(user_identifier)
             
             # Log and persist after completion
-            full_content = "".join(full_response)
+            full_content = "".join(full_response).replace("<!-- keep-alive -->\n", "")
             if "[RESET_STREAM_FOR_RETRY]" in full_content:
                 parts = full_content.split("[RESET_STREAM_FOR_RETRY]")
                 full_content = parts[-1]
 
             scores = parse_scores_from_markdown(full_content)
             
-            # Legacy table writes removed: all persistence is now managed on the frontend auto-save loop
             if request.user_id:
                 print(f"AI Stream synthesis completed for user: {request.user_id}. Telemetry handled by client-side hooks.")
 
@@ -153,17 +179,18 @@ async def analyze_skill_gap(request: SkillGapRequest):
             model=model_name,
             fallback_allowed=True
         )
+        # Parse scores to return to telemetry logs
+        scores = parse_scores_from_markdown(ai_response)
+
+        if request.user_id:
+            print(f"AI Non-stream synthesis completed for user: {request.user_id}. Telemetry handled by client-side hooks.")
+
+        return {
+            "report": ai_response,
+            "scores": scores
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI model generation failed: {str(e)}")
-
-    # Parse scores to return to telemetry logs
-    scores = parse_scores_from_markdown(ai_response)
-
-    # Legacy table writes removed: all persistence is now managed on the frontend auto-save loop
-    if request.user_id:
-        print(f"AI Non-stream synthesis completed for user: {request.user_id}. Telemetry handled by client-side hooks.")
-
-    return {
-        "report": ai_response,
-        "scores": scores
-    }
+    finally:
+        async with generation_lock:
+            active_generations.discard(user_identifier)
