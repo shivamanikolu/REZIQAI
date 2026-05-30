@@ -522,6 +522,7 @@ async def generate_completion_stream(
         # This keeps Vercel's streaming connection alive for up to 300 seconds
         # on the Hobby plan — no fake keep-alive pings needed.
         # Primary key is tried first. If it fails, secondary key is used.
+        # VERCEL TRIGGER COMMENT: Force redeployment.
 
         GROQ_MAX_OUTPUT_TOKENS = 8192
 
