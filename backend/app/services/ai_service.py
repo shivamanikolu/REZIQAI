@@ -524,6 +524,11 @@ async def generate_completion_stream(
         # Primary key is tried first. If it fails, secondary key is used.
         # VERCEL TRIGGER COMMENT: Force redeployment.
 
+        # Truncate prompt to max 6000 chars to avoid Groq 413 error
+        MAX_PROMPT_CHARS = 24000
+        if len(prompt) > MAX_PROMPT_CHARS:
+            prompt = prompt[:MAX_PROMPT_CHARS] + "\n\n[Note: Input truncated for processing]"
+
         GROQ_MAX_OUTPUT_TOKENS = 8192
         print(f"[STREAM DEBUG] target_model={target_model}, keys_to_try will have {len([k for k in [settings.GROQ_API_KEY_PRIMARY or settings.GROQ_API_KEY, settings.GROQ_API_KEY_SECONDARY] if k])} keys")
 
@@ -594,6 +599,11 @@ async def generate_completion_stream(
                         if response.status_code == 401:
                             print(f"[True Stream] {key_name} unauthorized (401). Check API key value.")
                             last_error = f"{key_name} unauthorized"
+                            continue
+
+                        if response.status_code == 413:
+                            print(f"[True Stream] {key_name} payload too large (413). Truncating prompt...")
+                            last_error = f"{key_name} payload too large"
                             continue
 
                         if response.status_code != 200:
