@@ -23,15 +23,17 @@ console_handler.setFormatter(logging.Formatter(
 logger.addHandler(console_handler)
 
 # Rotating file handler
-try:
-    os.makedirs("logs", exist_ok=True)
-    file_handler = RotatingFileHandler("logs/app.log", maxBytes=10485760, backupCount=5)
-    file_handler.setFormatter(logging.Formatter(
-        '[%(asctime)s] %(levelname)s [%(name)s] [%(filename)s:%(lineno)d]: %(message)s'
-    ))
-    logger.addHandler(file_handler)
-except Exception as e:
-    print(f"Could not initialize file logger: {e}")
+if not os.environ.get("VERCEL"):
+    try:
+        os.makedirs("logs", exist_ok=True)
+        file_handler = RotatingFileHandler("logs/app.log", maxBytes=10485760, backupCount=5)
+        file_handler.setFormatter(logging.Formatter(
+            '[%(asctime)s] %(levelname)s [%(name)s] [%(filename)s:%(lineno)d]: %(message)s'
+        ))
+        logger.addHandler(file_handler)
+    except Exception:
+        # Silently skip file logging if creation fails
+        pass
 
 class StripPrefixMiddleware:
     def __init__(self, app, prefix: str):
